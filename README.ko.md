@@ -85,29 +85,12 @@ npm link
 
 **파일:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-**npm link 사용 시:**
 ```json
 {
   "mcpServers": {
     "timetree": {
       "command": "npx",
       "args": ["timetree-mcp"],
-      "env": {
-        "TIMETREE_EMAIL": "your-email@example.com",
-        "TIMETREE_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-**npm link 미사용 시:**
-```json
-{
-  "mcpServers": {
-    "timetree": {
-      "command": "node",
-      "args": ["/absolute/path/to/TimeTree-MCP/dist/index.js"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -135,20 +118,11 @@ npm link
 <details>
 <summary><b>3️⃣ Claude Code (CLI)</b></summary>
 
-**npm link 사용 시:**
 ```bash
 claude mcp add timetree \
   --env TIMETREE_EMAIL=your@email.com \
   --env TIMETREE_PASSWORD=yourpass \
   -- npx timetree-mcp
-```
-
-**npm link 미사용 시:**
-```bash
-claude mcp add timetree \
-  --env TIMETREE_EMAIL=your@email.com \
-  --env TIMETREE_PASSWORD=yourpass \
-  -- node /absolute/path/to/TimeTree-MCP/dist/index.js
 ```
 
 </details>
@@ -161,8 +135,8 @@ claude mcp add timetree \
 ```toml
 [[mcp.servers]]
 name = "timetree"
-command = "node"
-args = ["/absolute/path/to/.timetree-mcp/dist/index.js"]
+command = "npx"
+args = ["timetree-mcp"]
 
 [mcp.servers.env]
 TIMETREE_EMAIL = "your-email@example.com"

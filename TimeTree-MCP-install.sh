@@ -37,6 +37,10 @@ if [ ! -f "$DIST_PATH" ]; then
   exit 1
 fi
 
+# Link globally for npx usage
+echo "🔗 Linking globally..."
+npm link
+
 echo ""
 echo "✅ Installation complete!"
 echo ""
@@ -76,8 +80,8 @@ File: ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "timetree": {
-      "command": "node",
-      "args": ["$DIST_PATH"],
+      "command": "npx",
+      "args": ["timetree-mcp"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -101,8 +105,8 @@ File: %APPDATA%\\Claude\\claude_desktop_config.json
 {
   "mcpServers": {
     "timetree": {
-      "command": "node",
-      "args": ["$DIST_PATH"],
+      "command": "npx",
+      "args": ["timetree-mcp"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -126,7 +130,7 @@ Run this command:
 claude mcp add timetree \\
   --env TIMETREE_EMAIL=your-email@example.com \\
   --env TIMETREE_PASSWORD=your-password \\
-  -- node "$DIST_PATH"
+  -- npx timetree-mcp
 
 Then: Restart your terminal or run 'claude mcp refresh'
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -142,8 +146,8 @@ File: ~/.codex/config.toml
 
 [[mcp.servers]]
 name = "timetree"
-command = "node"
-args = ["$DIST_PATH"]
+command = "npx"
+args = ["timetree-mcp"]
 
 [mcp.servers.env]
 TIMETREE_EMAIL = "your-email@example.com"
@@ -167,8 +171,8 @@ Or via UI: Click ⋮ (top right) → MCP Servers → Manage MCP Servers → View
 {
   "mcpServers": {
     "timetree": {
-      "command": "node",
-      "args": ["$DIST_PATH"],
+      "command": "npx",
+      "args": ["timetree-mcp"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -195,8 +199,8 @@ File: cline_mcp_settings.json
 {
   "mcpServers": {
     "timetree": {
-      "command": "node",
-      "args": ["$DIST_PATH"],
+      "command": "npx",
+      "args": ["timetree-mcp"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -218,8 +222,8 @@ EOF
 Most MCP clients support this standard format:
 
 {
-  "command": "node",
-  "args": ["$DIST_PATH"],
+  "command": "npx",
+  "args": ["timetree-mcp"],
   "env": {
     "TIMETREE_EMAIL": "your-email@example.com",
     "TIMETREE_PASSWORD": "your-password"
@@ -228,7 +232,7 @@ Most MCP clients support this standard format:
 
 Or as command line:
 
-node $DIST_PATH
+npx timetree-mcp
 
 With environment variables:
 

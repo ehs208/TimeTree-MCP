@@ -85,29 +85,12 @@ See the [Configuration](#configuration) section below to set up your MCP client.
 
 **File:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-**With npm link:**
 ```json
 {
   "mcpServers": {
     "timetree": {
       "command": "npx",
       "args": ["timetree-mcp"],
-      "env": {
-        "TIMETREE_EMAIL": "your-email@example.com",
-        "TIMETREE_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-**Without npm link:**
-```json
-{
-  "mcpServers": {
-    "timetree": {
-      "command": "node",
-      "args": ["/absolute/path/to/TimeTree-MCP/dist/index.js"],
       "env": {
         "TIMETREE_EMAIL": "your-email@example.com",
         "TIMETREE_PASSWORD": "your-password"
@@ -133,22 +116,13 @@ See the [Configuration](#configuration) section below to set up your MCP client.
 </details>
 
 <details>
-<summary><b>3️⃣ Claude Code (CLI)</b></summary>
+<invoke name="summary"><b>3️⃣ Claude Code (CLI)</b></summary>
 
-**With npm link:**
 ```bash
 claude mcp add timetree \
   --env TIMETREE_EMAIL=your@email.com \
   --env TIMETREE_PASSWORD=yourpass \
   -- npx timetree-mcp
-```
-
-**Without npm link:**
-```bash
-claude mcp add timetree \
-  --env TIMETREE_EMAIL=your@email.com \
-  --env TIMETREE_PASSWORD=yourpass \
-  -- node /absolute/path/to/TimeTree-MCP/dist/index.js
 ```
 
 </details>
@@ -161,8 +135,8 @@ claude mcp add timetree \
 ```toml
 [[mcp.servers]]
 name = "timetree"
-command = "node"
-args = ["/absolute/path/to/.timetree-mcp/dist/index.js"]
+command = "npx"
+args = ["timetree-mcp"]
 
 [mcp.servers.env]
 TIMETREE_EMAIL = "your-email@example.com"
