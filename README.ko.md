@@ -229,52 +229,10 @@ claude mcp add timetree \
 
 ### MCP Tools
 
-#### `list_calendars`
+- **list_calendars** - 참여자 정보를 포함한 캘린더 목록 조회
+- **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회
 
-인증된 사용자의 모든 활성 TimeTree 캘린더와 참여자를 나열합니다.
-
-**입력**: 없음
-
-**출력**:
-- `calendars`: 캘린더 객체 배열
-  - `id`: 캘린더 ID (문자열)
-  - `name`: 캘린더 이름
-  - `alias_code`: 공유용 짧은 코드
-  - `is_active`: 항상 true (비활성 캘린더는 필터링됨)
-  - `users`: 캘린더 참여 중인 활성 사용자 배열
-    - `name`: 사용자 표시 이름
-    - `role`: 사용자 역할 ("owner" 또는 "member")
-- `total`: 캘린더 수
-
-#### `get_events`
-
-자동 페이지네이션으로 특정 캘린더의 모든 이벤트를 가져옵니다.
-
-**입력**:
-- `calendar_id` (문자열, 필수): 캘린더 ID
-- `since` (숫자, 선택): Unix 타임스탬프 (밀리초). 이 시간 이후 수정된 이벤트만 가져옵니다. 기본값은 0 (모든 이벤트).
-
-**출력**:
-- `calendar_id`: 요청한 캘린더 ID
-- `events`: 이벤트 객체 배열
-  - `uuid`: 이벤트 고유 ID
-  - `title`: 이벤트 제목
-  - `start_at`: 시작 시간 (ISO 8601)
-  - `end_at`: 종료 시간 (ISO 8601)
-  - `all_day`: 종일 이벤트 여부
-  - `location`: 위치 이름 (또는 null)
-  - `location_lat`: 위도 (또는 null)
-  - `location_lon`: 경도 (또는 null)
-  - `note`: 이벤트 메모 (또는 null)
-  - `url`: 관련 URL (또는 null)
-  - `category`: 이벤트 카테고리
-  - `type`: 이벤트 유형
-  - `created_at`: 생성 타임스탬프
-  - `updated_at`: 마지막 업데이트 타임스탬프
-  - `has_alerts`: 알림 설정 여부
-  - `has_recurrence`: 반복 이벤트 여부
-- `total`: 전체 이벤트 수
-- `since`: 필터링에 사용된 타임스탬프
+📖 파라미터 및 사용법은 [COMMANDS.md](COMMANDS.md) 참조
 
 ### 개발
 

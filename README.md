@@ -227,52 +227,10 @@ Most MCP clients support this standard format:
 
 ### MCP Tools
 
-#### `list_calendars`
+- **list_calendars** - List all calendars with participating users
+- **get_events** - Get events from a calendar with auto-pagination
 
-List all active TimeTree calendars for the authenticated user with participating users.
-
-**Input**: None
-
-**Output**:
-- `calendars`: Array of calendar objects
-  - `id`: Calendar ID (string)
-  - `name`: Calendar name
-  - `alias_code`: Short code for sharing
-  - `is_active`: Always true (inactive calendars are filtered out)
-  - `users`: Array of active users in this calendar
-    - `name`: User's display name
-    - `role`: User's role ("owner" or "member")
-- `total`: Number of calendars
-
-#### `get_events`
-
-Get all events from a specific calendar with automatic pagination.
-
-**Input**:
-- `calendar_id` (string, required): The calendar ID
-- `since` (number, optional): Unix timestamp in milliseconds. Fetches events modified after this time. Defaults to 0 (all events).
-
-**Output**:
-- `calendar_id`: The requested calendar ID
-- `events`: Array of event objects
-  - `uuid`: Event unique ID
-  - `title`: Event title
-  - `start_at`: Start time (ISO 8601)
-  - `end_at`: End time (ISO 8601)
-  - `all_day`: Boolean indicating all-day event
-  - `location`: Location name (or null)
-  - `location_lat`: Latitude (or null)
-  - `location_lon`: Longitude (or null)
-  - `note`: Event notes (or null)
-  - `url`: Related URL (or null)
-  - `category`: Event category
-  - `type`: Event type
-  - `created_at`: Creation timestamp
-  - `updated_at`: Last update timestamp
-  - `has_alerts`: Boolean indicating if alerts are set
-  - `has_recurrence`: Boolean indicating if event repeats
-- `total`: Total number of events
-- `since`: The timestamp used for filtering
+📖 See [COMMANDS.md](COMMANDS.md) for parameters and usage details.
 
 ### Development
 
