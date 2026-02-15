@@ -6,7 +6,7 @@
 
 > ⚠️ **DISCLAIMER**: This is an **UNOFFICIAL** TimeTree MCP server for **PERSONAL USE ONLY**. Not affiliated with TimeTree, Inc. May break at any time. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
 
-An unofficial MCP (Model Context Protocol) server that allows Claude AI to read your TimeTree calendar data.
+An unofficial MCP (Model Context Protocol) server that allows Claude and other MCP clients to read your TimeTree calendar data.
 
 > **Credits**: This project was inspired by and uses API insights from [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) by [@eoleedi](https://github.com/eoleedi).
 
