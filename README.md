@@ -23,8 +23,9 @@ An unofficial MCP (Model Context Protocol) server that allows Claude and other M
 ### Requirements
 
 - Node.js >= 18.0.0
+- Git (for installation)
 - A TimeTree account
-- An MCP-compatible client (Claude Desktop, Claude Code, Antigravity, Cline, etc.)
+- An MCP-compatible client (Claude Desktop, Claude Code, Codex, Antigravity, Cline, etc.)
 
 ### Installation
 
@@ -153,7 +154,27 @@ claude mcp add timetree \
 </details>
 
 <details>
-<summary><b>4️⃣ Google Antigravity</b></summary>
+<summary><b>4️⃣ Codex (OpenAI)</b></summary>
+
+**File:** `~/.codex/config.toml` (or `.codex/config.toml` for project-specific)
+
+```toml
+[[mcp.servers]]
+name = "timetree"
+command = "node"
+args = ["/absolute/path/to/.timetree-mcp/dist/index.js"]
+
+[mcp.servers.env]
+TIMETREE_EMAIL = "your-email@example.com"
+TIMETREE_PASSWORD = "your-password"
+```
+
+**Then:** Restart Codex CLI or reload IDE extension
+
+</details>
+
+<details>
+<summary><b>5️⃣ Google Antigravity</b></summary>
 
 **File (Windows):** `C:\Users\<USER_NAME>\.gemini\antigravity\mcp_config.json`
 **File (macOS/Linux):** `~/.gemini/antigravity/mcp_config.json`
@@ -178,7 +199,7 @@ claude mcp add timetree \
 </details>
 
 <details>
-<summary><b>5️⃣ VS Code-based Editors (Cline, Cursor, Windsurf, etc.)</b></summary>
+<summary><b>6️⃣ VS Code-based Editors (Cline, Cursor, Windsurf, etc.)</b></summary>
 
 Configuration varies by editor. Most use similar MCP config format.
 
@@ -204,7 +225,7 @@ Configuration varies by editor. Most use similar MCP config format.
 </details>
 
 <details>
-<summary><b>6️⃣ Other MCP Clients</b></summary>
+<parameter name="new_string"><b>7️⃣ Other MCP Clients</b></summary>
 
 Most MCP clients support this standard format:
 

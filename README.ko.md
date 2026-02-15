@@ -23,8 +23,9 @@ Claude를 비롯한 MCP 클라이언트에서 TimeTree 캘린더 데이터를 �
 ### 요구사항
 
 - Node.js >= 18.0.0
+- Git (설치용)
 - TimeTree 계정
-- MCP 호환 클라이언트 (Claude Desktop, Claude Code, Antigravity, Cline 등)
+- MCP 호환 클라이언트 (Claude Desktop, Claude Code, Codex, Antigravity, Cline 등)
 
 ### 설치
 
@@ -153,7 +154,27 @@ claude mcp add timetree \
 </details>
 
 <details>
-<summary><b>4️⃣ Google Antigravity</b></summary>
+<summary><b>4️⃣ Codex (OpenAI)</b></summary>
+
+**파일:** `~/.codex/config.toml` (또는 프로젝트별로 `.codex/config.toml`)
+
+```toml
+[[mcp.servers]]
+name = "timetree"
+command = "node"
+args = ["/absolute/path/to/.timetree-mcp/dist/index.js"]
+
+[mcp.servers.env]
+TIMETREE_EMAIL = "your-email@example.com"
+TIMETREE_PASSWORD = "your-password"
+```
+
+**그 다음:** Codex CLI 재시작 또는 IDE 확장 다시 로드
+
+</details>
+
+<details>
+<summary><b>5️⃣ Google Antigravity</b></summary>
 
 **파일 (Windows):** `C:\Users\<USER_NAME>\.gemini\antigravity\mcp_config.json`
 **파일 (macOS/Linux):** `~/.gemini/antigravity/mcp_config.json`
@@ -178,7 +199,7 @@ claude mcp add timetree \
 </details>
 
 <details>
-<summary><b>5️⃣ VS Code 기반 에디터 (Cline, Cursor, Windsurf 등)</b></summary>
+<summary><b>6️⃣ VS Code 기반 에디터 (Cline, Cursor, Windsurf 등)</b></summary>
 
 설정 방식은 에디터마다 다를 수 있습니다. 대부분 비슷한 MCP 설정 형식을 사용합니다.
 
@@ -206,7 +227,7 @@ claude mcp add timetree \
 </details>
 
 <details>
-<summary><b>6️⃣ 기타 MCP 클라이언트</b></summary>
+<summary><b>7️⃣ 기타 MCP 클라이언트</b></summary>
 
 대부분의 MCP 클라이언트는 다음 표준 형식을 지원합니다:
 
