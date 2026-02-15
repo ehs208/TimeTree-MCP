@@ -196,10 +196,12 @@ Configuration varies by editor. Most use similar MCP config format.
 }
 ```
 
+**Then:** Reload your editor window
+
 </details>
 
 <details>
-<parameter name="new_string"><b>7️⃣ Other MCP Clients</b></summary>
+<summary><b>7️⃣ Other MCP Clients</b></summary>
 
 Most MCP clients support this standard format:
 
