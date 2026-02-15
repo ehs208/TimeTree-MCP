@@ -116,7 +116,7 @@ See the [Configuration](#configuration) section below to set up your MCP client.
 </details>
 
 <details>
-<invoke name="summary"><b>3️⃣ Claude Code (CLI)</b></summary>
+<summary><b>3️⃣ Claude Code (CLI)</b></summary>
 
 ```bash
 claude mcp add timetree \
