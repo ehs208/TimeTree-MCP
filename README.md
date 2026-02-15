@@ -151,6 +151,7 @@ TIMETREE_PASSWORD = "your-password"
 <summary><b>5️⃣ Google Antigravity</b></summary>
 
 **File (Windows):** `C:\Users\<USER_NAME>\.gemini\antigravity\mcp_config.json`
+
 **File (macOS/Linux):** `~/.gemini/antigravity/mcp_config.json`
 
 **Or via UI:** Click ⋮ (top right) → MCP Servers → Manage MCP Servers → View raw config
