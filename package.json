@@ -1,0 +1,37 @@
+{
+  "name": "timetree-mcp",
+  "version": "0.1.0",
+  "description": "Unofficial TimeTree MCP Server for personal use - Read your TimeTree calendar data with Claude AI",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "timetree-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": [
+    "mcp",
+    "timetree",
+    "calendar",
+    "claude",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "node-fetch": "^3.3.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
