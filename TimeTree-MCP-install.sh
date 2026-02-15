@@ -54,20 +54,25 @@ echo "5️⃣  Google Antigravity"
 echo "6️⃣  VS Code-based Editors (Cline, etc.)"
 echo "7️⃣  Other MCP Clients"
 echo ""
-read -p "Enter your choice (1-7): " CHOICE
+
+# Read choice from /dev/tty for piped execution compatibility
+if [ -t 0 ]; then
+  read -p "Enter your choice (1-7): " CHOICE
+else
+  read -p "Enter your choice (1-7): " CHOICE </dev/tty
+fi
+
 echo ""
 
 case "${CHOICE}" in
   1)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "1️⃣  Claude Desktop (macOS)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "File: ~/Library/Application Support/Claude/claude_desktop_config.json"
-    echo ""
-    echo "Add this configuration:"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1️⃣  Claude Desktop (macOS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File: ~/Library/Application Support/Claude/claude_desktop_config.json
+
 {
   "mcpServers": {
     "timetree": {
@@ -80,20 +85,19 @@ case "${CHOICE}" in
     }
   }
 }
+
+Then: Restart Claude Desktop (Cmd+Q and reopen)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Restart Claude Desktop (Cmd+Q and reopen)"
     ;;
   2)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "2️⃣  Claude Desktop (Windows)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "File: %APPDATA%\\Claude\\claude_desktop_config.json"
-    echo ""
-    echo "Add this configuration:"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2️⃣  Claude Desktop (Windows)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File: %APPDATA%\\Claude\\claude_desktop_config.json
+
 {
   "mcpServers": {
     "timetree": {
@@ -106,63 +110,60 @@ EOF
     }
   }
 }
+
+Then: Restart Claude Desktop
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Restart Claude Desktop"
     ;;
   3)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "3️⃣  Claude Code (CLI)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Run this command:"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3️⃣  Claude Code (CLI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Run this command:
+
 claude mcp add timetree \\
   --env TIMETREE_EMAIL=your-email@example.com \\
   --env TIMETREE_PASSWORD=your-password \\
   -- node "$DIST_PATH"
+
+Then: Restart your terminal or run 'claude mcp refresh'
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Restart your terminal or run 'claude mcp refresh'"
     ;;
   4)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "4️⃣  Codex"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "File: ~/.codex/mcp_settings.json"
-    echo ""
-    echo "Add this configuration:"
-    echo ""
     cat << EOF
-{
-  "mcpServers": {
-    "timetree": {
-      "command": "node",
-      "args": ["$DIST_PATH"],
-      "env": {
-        "TIMETREE_EMAIL": "your-email@example.com",
-        "TIMETREE_PASSWORD": "your-password"
-      }
-    }
-  }
-}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4️⃣  Codex (OpenAI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File: ~/.codex/config.toml
+
+[[mcp.servers]]
+name = "timetree"
+command = "node"
+args = ["$DIST_PATH"]
+
+[mcp.servers.env]
+TIMETREE_EMAIL = "your-email@example.com"
+TIMETREE_PASSWORD = "your-password"
+
+Then: Restart Codex CLI or reload IDE extension
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Restart Codex"
     ;;
   5)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "5️⃣  Google Antigravity"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "File (Windows): C:\\Users\\<USER_NAME>\\.gemini\\antigravity\\mcp_config.json"
-    echo "File (macOS/Linux): ~/.gemini/antigravity/mcp_config.json"
-    echo ""
-    echo "Or via UI: Click ⋮ (top right) → MCP Servers → Manage MCP Servers → View raw config"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5️⃣  Google Antigravity
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File (Windows): C:\\Users\\<USER_NAME>\\.gemini\\antigravity\\mcp_config.json
+File (macOS/Linux): ~/.gemini/antigravity/mcp_config.json
+
+Or via UI: Click ⋮ (top right) → MCP Servers → Manage MCP Servers → View raw config
+
 {
   "mcpServers": {
     "timetree": {
@@ -175,21 +176,22 @@ EOF
     }
   }
 }
+
+Then: Restart Antigravity
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Restart Antigravity"
     ;;
   6)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "6️⃣  VS Code-based Editors (Cline, Cursor, Windsurf, etc.)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Configuration varies by editor. Most use similar MCP config format."
-    echo ""
-    echo "Example for Cline (VS Code Extension):"
-    echo "File: cline_mcp_settings.json"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6️⃣  VS Code-based Editors (Cline, Cursor, Windsurf, etc.)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Configuration varies by editor. Most use similar MCP config format.
+
+Example for Cline (VS Code Extension):
+File: cline_mcp_settings.json
+
 {
   "mcpServers": {
     "timetree": {
@@ -202,18 +204,19 @@ EOF
     }
   }
 }
+
+Then: Reload your editor window
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Then: Reload your editor window"
     ;;
   7)
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "7️⃣  Other MCP Clients (Generic Configuration)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Most MCP clients support this standard format:"
-    echo ""
     cat << EOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7️⃣  Other MCP Clients (Generic Configuration)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Most MCP clients support this standard format:
+
 {
   "command": "node",
   "args": ["$DIST_PATH"],
@@ -222,16 +225,17 @@ EOF
     "TIMETREE_PASSWORD": "your-password"
   }
 }
+
+Or as command line:
+
+node $DIST_PATH
+
+With environment variables:
+
+export TIMETREE_EMAIL=your-email@example.com
+export TIMETREE_PASSWORD=your-password
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    echo ""
-    echo "Or as command line:"
-    echo ""
-    echo "node $DIST_PATH"
-    echo ""
-    echo "With environment variables:"
-    echo ""
-    echo "export TIMETREE_EMAIL=your-email@example.com"
-    echo "export TIMETREE_PASSWORD=your-password"
     ;;
   *)
     echo "❌ Invalid choice. Please run the script again and select 1-7."
@@ -240,12 +244,13 @@ EOF
 esac
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
 echo "⚠️  IMPORTANT:"
 echo "   • Replace 'your-email@example.com' with your TimeTree email"
 echo "   • Replace 'your-password' with your TimeTree password"
 echo "   • Keep your credentials secure!"
 echo ""
 echo "🎉 Installation complete! Follow the configuration steps above."
+echo ""
+echo "To uninstall, simply delete the TimeTree-MCP directory:"
+echo "   rm -rf $INSTALL_DIR"
 echo ""
