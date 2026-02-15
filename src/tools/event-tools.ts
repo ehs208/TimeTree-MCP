@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { getLabelColorName } from '../types/label-colors.js';
 
 export const GetEventsInputSchema = z.object({
   calendar_id: z.string().describe('The calendar ID to fetch events from'),
@@ -27,7 +28,9 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
     name: 'get_events',
     description:
       'Get all events from a specific TimeTree calendar. Automatically handles pagination to fetch all events. ' +
-      'Returns event details including title, start/end times, location, notes, and more.',
+      'Returns event details including title, start/end times, location, notes, label color, and more. ' +
+      'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
+      '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -78,6 +81,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           end_timezone: event.end_timezone || null,
           all_day: event.all_day,
           label_id: event.label_id || null,
+          label_color: event.label_id ? getLabelColorName(event.label_id) : null,
           location: event.location || null,
           location_lat: event.location_lat || null,
           location_lon: event.location_lon || null,
