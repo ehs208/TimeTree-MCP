@@ -242,14 +242,6 @@ npm run build
 npm run dev
 ```
 
-### How It Works
-
-This server uses reverse-engineered TimeTree internal APIs:
-
-1. **Authentication**: Uses the web app's sign-in endpoint
-2. **Calendars**: Fetches from `/api/v1/calendars`
-3. **Events**: Uses the `/api/v1/calendar/{id}/events/sync` endpoint with automatic pagination
-
 ### Limitations
 
 - **Read-only**: Currently only supports reading calendars and events
