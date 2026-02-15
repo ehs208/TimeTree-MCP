@@ -77,6 +77,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           end_at: new Date(event.end_at).toISOString(),
           end_timezone: event.end_timezone || null,
           all_day: event.all_day,
+          label_id: event.label_id || null,
           location: event.location || null,
           location_lat: event.location_lat || null,
           location_lon: event.location_lon || null,
