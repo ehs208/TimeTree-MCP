@@ -61,16 +61,10 @@ npm install
 npm run build
 ```
 
-2. **Choose installation method:**
+2. **Link the package:**
 
-**Option A: Global link (cleaner)**
 ```bash
 npm link
-```
-
-**Option B: Direct execution (simpler)**
-```bash
-# No additional steps needed
 ```
 
 3. **Configure your MCP client:**
