@@ -26,6 +26,7 @@ export interface HttpClientOptions {
 export class HttpClient {
   private defaultTimeout: number;
   private sessionCookie?: string;
+  private csrfToken?: string;
 
   constructor(options: HttpClientOptions = {}) {
     this.defaultTimeout = options.timeout || 30000;
@@ -43,7 +44,22 @@ export class HttpClient {
     this.sessionCookie = undefined;
   }
 
-  private buildHeaders(additionalHeaders?: Record<string, string>): Record<string, string> {
+  setCsrfToken(token: string): void {
+    this.csrfToken = token;
+  }
+
+  getCsrfToken(): string | undefined {
+    return this.csrfToken;
+  }
+
+  clearCsrfToken(): void {
+    this.csrfToken = undefined;
+  }
+
+  private buildHeaders(
+    additionalHeaders?: Record<string, string>,
+    requiresCsrf: boolean = false
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       ...TIMETREE_CONFIG.HEADERS,
       ...additionalHeaders,
@@ -51,6 +67,10 @@ export class HttpClient {
 
     if (this.sessionCookie) {
       headers['Cookie'] = `${TIMETREE_CONFIG.SESSION_COOKIE_NAME}=${this.sessionCookie}`;
+    }
+
+    if (requiresCsrf && this.csrfToken) {
+      headers['x-csrf-token'] = this.csrfToken;
     }
 
     return headers;
@@ -63,9 +83,10 @@ export class HttpClient {
       body?: any;
       headers?: Record<string, string>;
       timeout?: number;
+      requiresCsrf?: boolean;
     } = {}
   ): Promise<T> {
-    const { method = 'GET', body, headers, timeout = this.defaultTimeout } = options;
+    const { method = 'GET', body, headers, timeout = this.defaultTimeout, requiresCsrf = false } = options;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -75,7 +96,7 @@ export class HttpClient {
 
       const response = await fetch(url, {
         method,
-        headers: this.buildHeaders(headers),
+        headers: this.buildHeaders(headers, requiresCsrf),
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
@@ -90,6 +111,13 @@ export class HttpClient {
           this.sessionCookie = sessionMatch[1];
           logger.debug('Session cookie updated');
         }
+      }
+
+      // Extract CSRF token from response headers if present
+      const csrfTokenHeader = response.headers.get('x-csrf-token');
+      if (csrfTokenHeader) {
+        this.csrfToken = csrfTokenHeader;
+        logger.debug('CSRF token updated from response header');
       }
 
       // Handle non-2xx responses
@@ -136,15 +164,30 @@ export class HttpClient {
     return this.request<T>(url, { method: 'GET', headers });
   }
 
-  async post<T>(url: string, body: any, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(url, { method: 'POST', body, headers });
+  async post<T>(
+    url: string,
+    body: any,
+    headers?: Record<string, string>,
+    requiresCsrf: boolean = true
+  ): Promise<T> {
+    return this.request<T>(url, { method: 'POST', body, headers, requiresCsrf });
   }
 
-  async put<T>(url: string, body: any, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(url, { method: 'PUT', body, headers });
+  async put<T>(
+    url: string,
+    body: any,
+    headers?: Record<string, string>,
+    requiresCsrf: boolean = false
+  ): Promise<T> {
+    return this.request<T>(url, { method: 'PUT', body, headers, requiresCsrf });
   }
 
-  async delete<T>(url: string, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(url, { method: 'DELETE', headers });
+  async delete<T>(
+    url: string,
+    body?: any,
+    headers?: Record<string, string>,
+    requiresCsrf: boolean = true
+  ): Promise<T> {
+    return this.request<T>(url, { method: 'DELETE', body, headers, requiresCsrf });
   }
 }

@@ -6,7 +6,7 @@
 
 > ⚠️ **DISCLAIMER**: This is an **UNOFFICIAL** TimeTree MCP server for **PERSONAL USE ONLY**. Not affiliated with TimeTree, Inc. May break at any time. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
 
-An unofficial MCP (Model Context Protocol) server that allows Claude and other MCP clients to read your TimeTree calendar data.
+An unofficial MCP (Model Context Protocol) server that allows MCP clients (Claude Desktop, Claude Code, Codex, Antigravity, Cline, Cursor, Windsurf, etc.) to access your TimeTree calendar data.
 
 > **Credits**: This project was inspired by and uses API insights from [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) by [@eoleedi](https://github.com/eoleedi).
 
@@ -14,6 +14,9 @@ An unofficial MCP (Model Context Protocol) server that allows Claude and other M
 
 - 📅 **List Calendars** - Get all your TimeTree calendars
 - 📆 **Get Events** - Retrieve events from any calendar with automatic pagination
+- ➕ **Create Events** - Add new events to your calendars
+- ✏️ **Update Events** - Modify existing events
+- 🗑️ **Delete Events** - Remove events from your calendars
 - 🔐 **Secure Authentication** - Email/password authentication (stored only in MCP config)
 - ⚡ **Rate Limiting** - Token bucket algorithm to prevent API overload
 - 🔄 **Auto Pagination** - Automatically fetches all events across multiple pages
@@ -227,6 +230,9 @@ Most MCP clients support this standard format:
 
 - **list_calendars** - List all calendars with participating users
 - **get_events** - Get events from a calendar with auto-pagination
+- **create_event** - Create a new event in a calendar
+- **update_event** - Update an existing event
+- **delete_event** - Delete an event from a calendar
 
 📖 See [COMMANDS.md](COMMANDS.md) for parameters and usage details.
 
@@ -242,10 +248,10 @@ npm run dev
 
 ### Limitations
 
-- **Read-only**: Currently only supports reading calendars and events
 - **Unofficial API**: May break if TimeTree changes their internal API
 - **Rate Limited**: 10 requests/second (with automatic retry for 429 errors)
 - **No Official Support**: TimeTree does not officially support this tool
+- **CSRF Token Required**: Write operations require CSRF token (automatically extracted from TimeTree web page)
 
 ### Security
 

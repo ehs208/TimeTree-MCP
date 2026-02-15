@@ -12,8 +12,17 @@ import type {
   CalendarsResponse,
   Event,
   EventsSyncResponse,
+  CreateEventInput,
+  CreateEventResponse,
+  UpdateEventInput,
+  UpdateEventResponse,
 } from '../types/timetree.js';
-import { CalendarsResponseSchema, EventsSyncResponseSchema } from '../types/timetree.js';
+import {
+  CalendarsResponseSchema,
+  EventsSyncResponseSchema,
+  CreateEventResponseSchema,
+  UpdateEventResponseSchema,
+} from '../types/timetree.js';
 
 export class TimeTreeAPIError extends Error {
   constructor(message: string, public statusCode?: number) {
@@ -169,5 +178,161 @@ export class TimeTreeAPIClient {
   async verifyCalendar(calendarId: string): Promise<boolean> {
     const calendars = await this.getCalendars();
     return calendars.some((cal) => cal.id.toString() === calendarId);
+  }
+
+  // ============================================================================
+  // CRUD Operations
+  // ============================================================================
+
+  /**
+   * Create a new event in a calendar
+   * Requires CSRF token for authentication
+   */
+  async createEvent(calendarId: string, eventData: CreateEventInput): Promise<Event> {
+    await this.ensureAuthenticated();
+
+    logger.info('Creating event', { calendarId, title: eventData.title });
+
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CREATE_EVENT(calendarId)}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager
+          .getHttpClient()
+          .post<CreateEventResponse>(url, eventData, undefined, true); // requiresCsrf=true
+      });
+
+      // Validate response
+      const validated = CreateEventResponseSchema.parse(response);
+
+      logger.info('Event created successfully', {
+        calendarId,
+        eventUuid: validated.event.uuid,
+      });
+
+      return validated.event;
+    } catch (error) {
+      // Check for specific error codes
+      if ((error as any).statusCode === 404) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if ((error as any).statusCode === 403) {
+        logger.error('CSRF token missing or invalid', { error });
+        throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
+      }
+
+      logger.error('Failed to create event', { calendarId, error });
+      throw new TimeTreeAPIError(
+        `Failed to create event: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Update an existing event
+   * Requires CSRF token for authentication
+   */
+  async updateEvent(
+    calendarId: string,
+    eventUuid: string,
+    updateData: UpdateEventInput
+  ): Promise<Event> {
+    await this.ensureAuthenticated();
+
+    logger.info('Updating event', { calendarId, eventUuid });
+
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.UPDATE_EVENT(
+      calendarId,
+      eventUuid
+    )}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager
+          .getHttpClient()
+          .put<UpdateEventResponse>(url, updateData, undefined, true); // requiresCsrf=true
+      });
+
+      // Validate response
+      const validated = UpdateEventResponseSchema.parse(response);
+
+      logger.info('Event updated successfully', {
+        calendarId,
+        eventUuid: validated.event.uuid,
+      });
+
+      return validated.event;
+    } catch (error) {
+      // Check for specific error codes
+      if ((error as any).statusCode === 404) {
+        throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
+      }
+
+      if ((error as any).statusCode === 403) {
+        logger.error('CSRF token missing or invalid', { error });
+        throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
+      }
+
+      logger.error('Failed to update event', { calendarId, eventUuid, error });
+      throw new TimeTreeAPIError(
+        `Failed to update event: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Delete an event from a calendar
+   *
+   * NOTE: TimeTree's DELETE endpoint requires the full event data in the request body.
+   * This is unusual for a DELETE operation, but required by TimeTree's API.
+   *
+   * Strategy: Fetch the event first, then delete with full event data.
+   * Requires CSRF token for authentication.
+   */
+  async deleteEvent(calendarId: string, eventUuid: string): Promise<void> {
+    await this.ensureAuthenticated();
+
+    logger.info('Deleting event', { calendarId, eventUuid });
+
+    try {
+      // Step 1: Fetch all events to find the target event
+      // (TimeTree requires full event data in DELETE body)
+      const events = await this.getEventsByCalendar(calendarId, 0);
+      const targetEvent = events.find((e) => e.uuid === eventUuid);
+
+      if (!targetEvent) {
+        throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
+      }
+
+      // Step 2: Delete with full event data
+      const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.DELETE_EVENT(
+        calendarId,
+        eventUuid
+      )}`;
+
+      await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager
+          .getHttpClient()
+          .delete(url, targetEvent, undefined, true); // requiresCsrf=true
+      });
+
+      logger.info('Event deleted successfully', { calendarId, eventUuid });
+    } catch (error) {
+      // Check for specific error codes
+      if ((error as any).statusCode === 404) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if ((error as any).statusCode === 403) {
+        logger.error('CSRF token missing or invalid', { error });
+        throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
+      }
+
+      logger.error('Failed to delete event', { calendarId, eventUuid, error });
+      throw new TimeTreeAPIError(
+        `Failed to delete event: ${(error as Error).message}`
+      );
+    }
   }
 }

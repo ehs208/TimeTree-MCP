@@ -6,7 +6,7 @@
 
 > ⚠️ **면책조항**: 이것은 **개인 사용 전용** **비공식** TimeTree MCP 서버입니다. TimeTree, Inc.와 제휴 관계가 없으며 언제든 작동이 중단될 수 있습니다. 자세한 내용은 [DISCLAIMER.md](DISCLAIMER.md)를 참조하십시오.
 
-Claude를 비롯한 MCP 클라이언트에서 TimeTree 캘린더 데이터를 읽을 수 있도록 하는 비공식 MCP (Model Context Protocol) 서버입니다.
+MCP 클라이언트(Claude Desktop, Claude Code, Codex, Antigravity, Cline, Cursor, Windsurf 등)에서 TimeTree 캘린더 데이터를 관리할 수 있도록 하는 비공식 MCP (Model Context Protocol) 서버입니다.
 
 > **크레딧**: 이 프로젝트는 [@eoleedi](https://github.com/eoleedi)의 [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter)에서 영감을 받았으며 API 분석 결과를 활용했습니다.
 
@@ -14,6 +14,9 @@ Claude를 비롯한 MCP 클라이언트에서 TimeTree 캘린더 데이터를 �
 
 - 📅 **캘린더 목록** - 모든 TimeTree 캘린더 가져오기
 - 📆 **이벤트 조회** - 자동 페이지네이션으로 캘린더 이벤트 조회
+- ➕ **이벤트 생성** - 캘린더에 새 이벤트 추가
+- ✏️ **이벤트 수정** - 기존 이벤트 수정
+- 🗑️ **이벤트 삭제** - 캘린더에서 이벤트 제거
 - 🔐 **안전한 인증** - 이메일/비밀번호 인증 (MCP 설정에만 저장)
 - ⚡ **속도 제한** - Token Bucket 알고리즘으로 API 과부하 방지
 - 🔄 **자동 페이지네이션** - 여러 페이지에 걸친 모든 이벤트 자동 조회
@@ -227,6 +230,9 @@ TIMETREE_PASSWORD = "your-password"
 
 - **list_calendars** - 참여자 정보를 포함한 캘린더 목록 조회
 - **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회
+- **create_event** - 캘린더에 새 이벤트 생성
+- **update_event** - 기존 이벤트 수정
+- **delete_event** - 캘린더에서 이벤트 삭제
 
 📖 파라미터 및 사용법은 [COMMANDS.md](COMMANDS.md) 참조
 
@@ -242,7 +248,6 @@ npm run dev
 
 ### 제한사항
 
-- **읽기 전용**: 현재 캘린더 및 이벤트 읽기만 지원
 - **비공식 API**: TimeTree가 내부 API를 변경하면 작동이 중단될 수 있음
 - **속도 제한**: 초당 10개 요청 (429 오류 시 자동 재시도)
 - **공식 지원 없음**: TimeTree는 이 도구를 공식적으로 지원하지 않음

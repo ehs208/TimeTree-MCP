@@ -19,10 +19,12 @@ class Logger {
 
   private maskSensitiveData(data: any): any {
     if (typeof data === 'string') {
-      // Mask passwords and session IDs
+      // Mask passwords, session IDs, and CSRF tokens
       return data
         .replace(/("password"\s*:\s*")[^"]+(")/gi, '$1***MASKED***$2')
-        .replace(/(_session_id=)[^;]+/gi, '$1***MASKED***');
+        .replace(/(_session_id=)[^;]+/gi, '$1***MASKED***')
+        .replace(/(x-csrf-token:\s*)[^\s,}]+/gi, '$1***MASKED***')
+        .replace(/("x-csrf-token"\s*:\s*")[^"]+(")/gi, '$1***MASKED***$2');
     }
     if (typeof data === 'object' && data !== null) {
       const masked = { ...data };
@@ -31,6 +33,9 @@ class Logger {
       }
       if ('_session_id' in masked) {
         masked._session_id = '***MASKED***';
+      }
+      if ('x-csrf-token' in masked) {
+        masked['x-csrf-token'] = '***MASKED***';
       }
       return masked;
     }
