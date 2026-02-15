@@ -36,35 +36,3 @@ Quick reference for using TimeTree MCP Server with Claude.
 # Daily check
 "What's on my schedule today?"
 ```
-
-## Response Examples
-
-### list_calendars
-```json
-{
-  "calendars": [
-    {
-      "id": "123456",
-      "name": "Work",
-      "users": [
-        {"name": "John", "role": "owner"},
-        {"name": "Sarah", "role": "member"}
-      ]
-    }
-  ]
-}
-```
-
-### get_events
-```json
-{
-  "events": [
-    {
-      "title": "Team Meeting",
-      "start_at": "2026-02-20T14:00:00Z",
-      "end_at": "2026-02-20T15:00:00Z",
-      "location": "Conference Room A"
-    }
-  ]
-}
-```
