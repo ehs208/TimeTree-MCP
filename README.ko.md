@@ -73,6 +73,90 @@ npm link
 
 </details>
 
+### TimeTree MCP 서버 업데이트
+
+TimeTree MCP 서버를 최신 기능과 수정사항으로 업데이트하려면:
+
+#### 1단계: 설치 디렉토리로 이동
+
+```bash
+cd ~/timetree-mcp  # 또는 설치한 경로
+```
+
+#### 2단계: 최신 변경사항 가져오기
+
+```bash
+git pull origin main
+```
+
+#### 3단계: 의존성 재설치
+
+```bash
+npm install
+```
+
+#### 4단계: 프로젝트 재빌드
+
+```bash
+npm run build
+```
+
+#### 5단계: MCP 클라이언트 재시작
+
+**Claude Desktop (macOS):**
+```bash
+# Cmd+Q를 눌러 종료한 후 Claude Desktop 재실행
+```
+
+**Claude Desktop (Windows):**
+```
+# Ctrl+Q를 사용하거나 창을 닫은 후 Claude Desktop 재실행
+```
+
+**Claude Code CLI:**
+```bash
+# CLI 재시작
+exit
+claude # 다시 시작
+```
+
+**기타 MCP 클라이언트:**
+클라이언트 설명서를 참고하십시오. 대부분의 클라이언트는 애플리케이션을 종료했다가 다시 열어야 합니다.
+
+#### 업데이트 문제 해결
+
+**`npm run build` 실패 시:**
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+**MCP 서버가 재시작 후 업데이트되지 않은 경우:**
+
+1. 설정 경로가 올바른지 확인:
+   - Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+   - Claude Desktop: `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+   - 설치 경로가 저장소를 복제한 위치와 일치하는지 확인
+
+2. Claude Desktop의 경우 개발자 콘솔에서 오류 확인:
+   - Claude Desktop에서 세 점 (⋮) 클릭
+   - "Developer"를 선택하거나 콘솔 출력 확인
+
+3. 초기 설치 중에 `npm link`가 실행되었는지 확인:
+   ```bash
+   npm link
+   ```
+
+**install.sh를 통해 설치한 경우:**
+
+위의 업데이트 단계를 설치 디렉토리에서 다시 실행하거나 재설치할 수 있습니다:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-MCP-install.sh | bash
+```
+
 ### 설정
 
 #### 지원하는 MCP 클라이언트
