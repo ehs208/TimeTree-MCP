@@ -12,6 +12,7 @@ export const TIMETREE_CONFIG = {
     AUTH: '/auth/email/signin',
     CALENDARS: '/calendars',
     EVENTS_SYNC: (calendarId: string) => `/calendar/${calendarId}/events/sync`,
+    EVENTS: (calendarId: string) => `/calendar/${calendarId}/events`,
     CREATE_EVENT: (calendarId: string) => `/calendar/${calendarId}/event`,
     UPDATE_EVENT: (calendarId: string, eventUuid: string) =>
       `/calendar/${calendarId}/event/${eventUuid}`,

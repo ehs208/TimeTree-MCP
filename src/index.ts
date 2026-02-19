@@ -121,7 +121,7 @@ async function main() {
   await server.connect(transport);
 
   logger.info('TimeTree MCP Server is running');
-  logger.info('Available tools: list_calendars, get_events, create_event, update_event, delete_event');
+  logger.info('Available tools: list_calendars, get_events, get_updated_events, create_event, update_event, delete_event');
 
   // Handle graceful shutdown
   process.on('SIGINT', async () => {

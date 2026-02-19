@@ -173,6 +173,58 @@ export class TimeTreeAPIClient {
   }
 
   /**
+   * Get events updated after a specific timestamp
+   * This is more efficient than getEventsByCalendar when checking for recent changes.
+   *
+   * @param calendarId - The calendar ID to fetch events from
+   * @param updatedAfter - Unix timestamp in milliseconds. Only return events updated after this time.
+   * @returns Array of events that were updated after the specified timestamp
+   */
+  async getUpdatedEvents(
+    calendarId: string,
+    updatedAfter: number
+  ): Promise<Event[]> {
+    await this.ensureAuthenticated();
+
+    logger.info('Fetching updated events for calendar', { calendarId, updatedAfter });
+
+    const url = `${TIMETREE_CONFIG.BASE_URL}/calendar/${calendarId}/events?since=${updatedAfter}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager
+          .getHttpClient()
+          .get<EventsSyncResponse>(url);
+      });
+
+      // Validate response
+      const validated = EventsSyncResponseSchema.parse(response);
+
+      // Filter events by updated_at timestamp
+      const updatedEvents = validated.events.filter(
+        (event) => event.updated_at && event.updated_at > updatedAfter
+      );
+
+      logger.info('Updated events fetched successfully', {
+        calendarId,
+        total: updatedEvents.length,
+      });
+
+      return updatedEvents;
+    } catch (error) {
+      // Check for 404 - invalid calendar
+      if ((error as any).statusCode === 404) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      logger.error('Failed to fetch updated events', { calendarId, error });
+      throw new TimeTreeAPIError(
+        `Failed to fetch updated events: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
    * Verify a calendar exists
    */
   async verifyCalendar(calendarId: string): Promise<boolean> {

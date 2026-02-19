@@ -23,6 +23,17 @@ export const GetEventsInputSchema = z.object({
     .describe('Optional limit on number of events to return. Defaults to all events.'),
 });
 
+export const GetUpdatedEventsInputSchema = z.object({
+  calendar_id: z.string().describe('The calendar ID to fetch updated events from'),
+  updated_after: z
+    .number()
+    .describe('Unix timestamp in milliseconds. Only return events updated after this time.'),
+  limit: z
+    .number()
+    .optional()
+    .describe('Optional limit on number of events to return. Defaults to all events.'),
+});
+
 export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_events',
@@ -165,6 +176,159 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
               text: JSON.stringify(
                 {
                   error: 'Failed to fetch events',
+                  message: (error as Error).message,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  };
+}
+
+export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
+  return {
+    name: 'get_updated_events',
+    description:
+      'Get events from a specific TimeTree calendar that were updated after a specified time. ' +
+      'Useful for finding recently modified events. Returns event details including title, start/end times, ' +
+      'location, notes, label color, and more. ' +
+      'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
+      '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: {
+          type: 'string',
+          description: 'The calendar ID to fetch updated events from',
+        },
+        updated_after: {
+          type: 'number',
+          description:
+            'Unix timestamp in milliseconds. Only return events updated after this time. ' +
+            'If user provides a date like "2026-02-01", convert it to Unix timestamp (e.g., 1769904000000).',
+        },
+        limit: {
+          type: 'number',
+          description: 'Optional limit on number of events to return.',
+        },
+      },
+      required: ['calendar_id', 'updated_after'],
+    },
+    handler: async (args: unknown) => {
+      try {
+        const input = GetUpdatedEventsInputSchema.parse(args);
+        const { calendar_id, updated_after, limit } = input;
+
+        logger.info('Tool: get_updated_events called', { calendar_id, updated_after, limit });
+
+        const events = await apiClient.getUpdatedEvents(calendar_id, updated_after);
+
+        // Limit results if provided
+        let filteredEvents = events;
+        if (limit) {
+          filteredEvents = filteredEvents.slice(0, limit);
+        }
+
+        // Format events for better readability
+        const formattedEvents = filteredEvents.map((event) => ({
+          uuid: event.uuid,
+          title: event.title,
+          start_at: new Date(event.start_at).toISOString(),
+          start_timezone: event.start_timezone || null,
+          end_at: new Date(event.end_at).toISOString(),
+          end_timezone: event.end_timezone || null,
+          all_day: event.all_day,
+          label_id: event.label_id || null,
+          label_color: event.label_id ? getLabelColorName(event.label_id) : null,
+          location: event.location || null,
+          location_lat: event.location_lat || null,
+          location_lon: event.location_lon || null,
+          note: event.note || null,
+          url: event.url || null,
+          category: event.category || null,
+          type: event.type || null,
+          created_at: event.created_at ? new Date(event.created_at).toISOString() : null,
+          updated_at: event.updated_at ? new Date(event.updated_at).toISOString() : null,
+          has_alerts: event.alerts && event.alerts.length > 0,
+          has_recurrence: event.recurrences && event.recurrences.length > 0,
+        }));
+
+        const result = {
+          calendar_id,
+          updated_after: new Date(updated_after).toISOString(),
+          events: formattedEvents,
+          total: formattedEvents.length,
+          total_fetched: events.length,
+        };
+
+        logger.info('Tool: get_updated_events completed', {
+          calendar_id,
+          total: result.total,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        logger.error('Tool: get_updated_events failed', { error });
+
+        // Handle specific error types
+        if (error instanceof InvalidCalendarError) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    error: 'Invalid calendar',
+                    message: `Calendar not found. Please use list_calendars to get valid calendar IDs.`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if ((error as any).name === 'ZodError') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    error: 'Invalid input',
+                    message: 'Please provide valid calendar_id (string) and updated_after (number) parameters',
+                    details: (error as any).errors,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  error: 'Failed to fetch updated events',
                   message: (error as Error).message,
                 },
                 null,
