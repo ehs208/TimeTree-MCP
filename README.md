@@ -75,12 +75,9 @@ See the [Configuration](#configuration) section below to set up your MCP client.
 
 ### Configuration
 
-#### Supported MCP Clients
+**Quick Example (Claude Desktop - macOS):**
 
-<details>
-<summary><b>1️⃣ Claude Desktop (macOS)</b></summary>
-
-**File:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -97,208 +94,26 @@ See the [Configuration](#configuration) section below to set up your MCP client.
 }
 ```
 
-**Then:** Restart Claude Desktop (Cmd+Q and reopen)
+Then restart Claude Desktop (Cmd+Q and reopen).
 
-</details>
+📖 **For all MCP clients (Claude Desktop Windows, Claude Code CLI, Codex, Antigravity, VS Code editors, etc.):**
+→ See **[docs/MCP_CLIENTS.md](docs/MCP_CLIENTS.md)** for detailed configuration instructions
 
-<details>
-<summary><b>2️⃣ Claude Desktop (Windows)</b></summary>
+### Updating
 
-**File:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-**Configuration:** Same as macOS (see above)
-
-**Then:** Restart Claude Desktop
-
-</details>
-
-<details>
-<summary><b>3️⃣ Claude Code (CLI)</b></summary>
-
-```bash
-claude mcp add timetree \
-  --env TIMETREE_EMAIL=your@email.com \
-  --env TIMETREE_PASSWORD=yourpass \
-  -- npx timetree-mcp
-```
-
-</details>
-
-<details>
-<summary><b>4️⃣ Codex (OpenAI)</b></summary>
-
-**File:** `~/.codex/config.toml` (or `.codex/config.toml` for project-specific)
-
-```toml
-[[mcp.servers]]
-name = "timetree"
-command = "npx"
-args = ["timetree-mcp"]
-
-[mcp.servers.env]
-TIMETREE_EMAIL = "your-email@example.com"
-TIMETREE_PASSWORD = "your-password"
-```
-
-**Then:** Restart Codex CLI or reload IDE extension
-
-</details>
-
-<details>
-<summary><b>5️⃣ Google Antigravity</b></summary>
-
-**File (Windows):** `C:\Users\<USER_NAME>\.gemini\antigravity\mcp_config.json`
-
-**File (macOS/Linux):** `~/.gemini/antigravity/mcp_config.json`
-
-**Or via UI:** Click ⋮ (top right) → MCP Servers → Manage MCP Servers → View raw config
-
-```json
-{
-  "mcpServers": {
-    "timetree": {
-      "command": "npx",
-      "args": ["timetree-mcp"],
-      "env": {
-        "TIMETREE_EMAIL": "your-email@example.com",
-        "TIMETREE_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>6️⃣ VS Code-based Editors (Cline, Cursor, Windsurf, etc.)</b></summary>
-
-Configuration varies by editor. Most use similar MCP config format.
-
-**Example for Cline (VS Code Extension):**
-
-**File:** `cline_mcp_settings.json`
-
-```json
-{
-  "mcpServers": {
-    "timetree": {
-      "command": "npx",
-      "args": ["timetree-mcp"],
-      "env": {
-        "TIMETREE_EMAIL": "your-email@example.com",
-        "TIMETREE_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-**Then:** Reload your editor window
-
-</details>
-
-<details>
-<summary><b>7️⃣ Other MCP Clients</b></summary>
-
-Most MCP clients support this standard format:
-
-```json
-{
-  "command": "npx",
-  "args": ["timetree-mcp"],
-  "env": {
-    "TIMETREE_EMAIL": "your-email@example.com",
-    "TIMETREE_PASSWORD": "your-password"
-  }
-}
-```
-
-</details>
-
-### Updating TimeTree MCP Server
-
-To keep your TimeTree MCP server up-to-date with the latest features and fixes:
-
-#### Step 1: Navigate to installation directory
+To update to the latest version:
 
 ```bash
 cd ~/timetree-mcp  # or your installation path
-```
-
-#### Step 2: Pull latest changes
-
-```bash
 git pull origin main
-```
-
-#### Step 3: Reinstall dependencies
-
-```bash
-npm install
-```
-
-#### Step 4: Rebuild the project
-
-```bash
-npm run build
-```
-
-#### Step 5: Restart your MCP client
-
-**Claude Desktop (macOS):**
-```bash
-# Press Cmd+Q to quit, then reopen Claude Desktop
-```
-
-**Claude Desktop (Windows):**
-```
-# Use Ctrl+Q or close the window, then reopen Claude Desktop
-```
-
-**Claude Code CLI:**
-```bash
-# Restart the CLI
-exit
-claude # start again
-```
-
-**Other MCP Clients:**
-Refer to your client's documentation for restarting. Most require closing and reopening the application.
-
-#### Troubleshooting Updates
-
-**If `npm run build` fails:**
-
-```bash
-rm -rf node_modules package-lock.json
 npm install
 npm run build
 ```
 
-**If MCP server doesn't update after restart:**
+Then restart your MCP client.
 
-1. Verify the config path is correct:
-   - Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
-   - Claude Desktop: `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
-   - Check that the installation path matches where you cloned the repository
-
-2. For Claude Desktop, check the Developer Console for errors:
-   - Click the three dots (⋮) in Claude Desktop
-   - Select "Developer" or check the console output
-
-3. Make sure `npm link` was run during initial installation:
-   ```bash
-   npm link
-   ```
-
-**If you installed via install.sh:**
-
-You can re-run the update steps above from the installation directory, or reinstall:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-MCP-install.sh | bash
-```
+📖 **For detailed update instructions and troubleshooting:**
+→ See **[docs/UPDATING.md](docs/UPDATING.md)**
 
 ### Usage
 
@@ -308,6 +123,7 @@ curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-M
 
 - **list_calendars** - List all calendars with participating users
 - **get_events** - Get events from a calendar with auto-pagination
+- **get_updated_events** - Get events updated after a specific timestamp (efficient incremental sync)
 - **create_event** - Create a new event in a calendar
 - **update_event** - Update an existing event
 - **delete_event** - Delete an event from a calendar
