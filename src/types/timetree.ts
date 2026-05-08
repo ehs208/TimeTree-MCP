@@ -54,6 +54,13 @@ export const EventSchema = z.object({
   attendees: z.array(z.number()).optional(),
   recurrences: z.array(z.any()).optional(),
   alerts: z.array(z.any()).optional(),
+  attachment: z.object({
+    checklist: z.array(z.object({
+      checked: z.boolean().optional(),
+      title: z.string().optional(),
+    }).passthrough()).optional(),
+    virtual_user_attendees: z.array(z.any()).optional(),
+  }).passthrough().optional().nullable(),
   created_at: z.number().optional(),
   updated_at: z.number().optional(),
   // Allow additional fields but ignore them

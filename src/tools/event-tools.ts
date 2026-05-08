@@ -9,6 +9,19 @@ import { InvalidCalendarError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
 import { getLabelColorName } from '../types/label-colors.js';
 
+function getEventChecklist(event: Record<string, unknown>) {
+  if (event.checklist !== undefined && event.checklist !== null) {
+    return event.checklist;
+  }
+
+  const attachment = event.attachment;
+  if (attachment && typeof attachment === 'object' && 'checklist' in attachment) {
+    return (attachment as Record<string, unknown>).checklist;
+  }
+
+  return null;
+}
+
 export const GetEventsInputSchema = z.object({
   calendar_id: z.string().describe('The calendar ID to fetch events from'),
   start_after: z
@@ -39,7 +52,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
     name: 'get_events',
     description:
       'Get all events from a specific TimeTree calendar. Automatically handles pagination to fetch all events. ' +
-      'Returns event details including title, start/end times, location, notes, label color, and more. ' +
+      'Returns event details including title, start/end times, location, notes, checklist items, label color, and more. ' +
       'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
       '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
     inputSchema: {
@@ -104,6 +117,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           updated_at: event.updated_at ? new Date(event.updated_at).toISOString() : null,
           has_alerts: event.alerts && event.alerts.length > 0,
           has_recurrence: event.recurrences && event.recurrences.length > 0,
+          checklist: getEventChecklist(event),
         }));
 
         const result = {
@@ -196,7 +210,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
     description:
       'Get events from a specific TimeTree calendar that were updated after a specified time. ' +
       'Useful for finding recently modified events. Returns event details including title, start/end times, ' +
-      'location, notes, label color, and more. ' +
+      'location, notes, checklist items, label color, and more. ' +
       'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
       '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
     inputSchema: {
@@ -256,6 +270,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
           updated_at: event.updated_at ? new Date(event.updated_at).toISOString() : null,
           has_alerts: event.alerts && event.alerts.length > 0,
           has_recurrence: event.recurrences && event.recurrences.length > 0,
+          checklist: getEventChecklist(event),
         }));
 
         const result = {
