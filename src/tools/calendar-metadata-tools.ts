@@ -7,14 +7,15 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError, TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
 
 export const GetCalendarMetadataInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   include_deactivated: z.boolean().default(false).optional().describe('Include deactivated users when supported'),
 });
 
 export const UpdateCalendarLabelsInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   labels: z.array(z.object({
     id: z.number().min(1).max(10).describe('Label ID 1-10'),
     name: z.string().optional().describe('New label name'),
@@ -65,7 +66,7 @@ export function createGetCalendarLabelsTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
       },
       required: ['calendar_id'],
     },
@@ -114,7 +115,7 @@ export function createUpdateCalendarLabelsTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         labels: {
           type: 'array',
           description: 'Labels to update/merge. Omitted labels are preserved.',
@@ -179,7 +180,7 @@ export function createGetCalendarMembersTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         include_deactivated: { type: 'boolean', description: 'Include deactivated members (default: false)' },
       },
       required: ['calendar_id'],
@@ -231,7 +232,7 @@ export function createGetCalendarVirtualMembersTool(apiClient: TimeTreeAPIClient
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         include_deactivated: { type: 'boolean', description: 'Include deactivated virtual members (default: false)' },
       },
       required: ['calendar_id'],

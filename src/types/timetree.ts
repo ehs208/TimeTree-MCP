@@ -21,7 +21,8 @@ export const EventAttachmentSchema = z.object({
 export const EventAttachmentInputSchema = z.object({
   url: z.string().optional().nullable(),
   content: z.string().optional(),
-  checklist: z.array(ChecklistItemSchema).optional(),
+  // TimeTree rejects an empty checklist array; null clears it.
+  checklist: z.array(ChecklistItemSchema).optional().nullable(),
   virtual_user_attendees: z.array(z.any()).optional(),
 }).passthrough();
 
@@ -153,6 +154,23 @@ export const CalendarLabelsResponseSchema = z.object({
 }).passthrough();
 
 export type CalendarLabelsResponse = z.infer<typeof CalendarLabelsResponseSchema>;
+
+export const MemorialDaySchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  country_iso: z.string(),
+  title: z.string(),
+  workday: z.boolean().optional(),
+  start_at: z.number(),
+  end_at: z.number(),
+  deactivated_at: z.number().nullable().optional(),
+}).passthrough();
+
+export const MemorialDaysResponseSchema = z.object({
+  memorialdays: z.array(MemorialDaySchema),
+}).passthrough();
+
+export type MemorialDay = z.infer<typeof MemorialDaySchema>;
+export type MemorialDaysResponse = z.infer<typeof MemorialDaysResponseSchema>;
 
 export const CalendarUsersResponseSchema = z.object({
   calendar_users: z.array(CalendarUserSchema),

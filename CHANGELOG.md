@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `get_holidays` for public holidays and memorial days by country and date range.
+- Added `start_before`, `query`, `label_id`, and `include_memos` filters to `get_events`.
+
 ### Changed
 - Node.js 22 or later is now required. Node.js 18 and 20 are past end-of-life; CI tests Node.js 22 and 24.
+- `get_events` now returns events sorted by start time, so `limit` keeps the earliest matches.
+- Every tool now accepts `calendar_id` as a string or a number, matching the string IDs returned by `list_calendars`.
+
+### Fixed
+- Event and memo URLs are now saved. TimeTree stores them in the attachment, so the top-level `url` was previously ignored.
+- Clearing a checklist with `checklist: []` no longer fails with HTTP 400.
+- Updating only the URL or only the checklist no longer drops the other attachment field.
 
 ## [0.3.0] - 2026-05-25
 

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError, TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
 import { getLabelColorName } from '../types/label-colors.js';
 import type { ChecklistItem, Event } from '../types/timetree.js';
 
@@ -115,7 +116,7 @@ function commonWriteError(error: unknown, action: string) {
 // ============================================================================
 
 export const CreateEventInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID to create the event in'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID to create the event in'),
   title: z.string().min(1).describe('Event title'),
   all_day: z.boolean().default(false).describe('Whether this is an all-day event'),
   start_at: z.number().describe('Event start time as Unix timestamp in milliseconds'),
@@ -147,10 +148,7 @@ export function createCreateEventTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: {
-          type: 'number',
-          description: 'The calendar ID to create the event in (use list_calendars to get valid IDs)',
-        },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         title: { type: 'string', description: 'Event title (required)' },
         all_day: {
           type: 'boolean',
@@ -272,7 +270,7 @@ export function createCreateEventTool(apiClient: TimeTreeAPIClient) {
 // ============================================================================
 
 export const UpdateEventInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The UUID of the event to update'),
   title: z.string().min(1).optional().describe('New event title'),
   all_day: z.boolean().optional().describe('Whether this is an all-day event'),
@@ -284,7 +282,7 @@ export const UpdateEventInputSchema = z.object({
   category: z.number().optional().describe('New event category'),
   note: z.string().optional().describe('New event notes'),
   location: z.string().optional().describe('New event location'),
-  url: z.string().optional().describe('New related URL'),
+  url: z.string().optional().describe('New related URL; use an empty string to remove it'),
   attendees: z.array(z.number()).optional().describe('Replace calendar user attendee IDs'),
   recurrences: z.array(z.string()).optional().describe('Replace recurrence RRULE strings'),
   alerts: z.array(z.number()).optional().describe('Replace notification offsets in minutes'),
@@ -303,7 +301,7 @@ export function createUpdateEventTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The UUID of the event to update (from get_events)' },
         title: { type: 'string', description: 'New event title' },
         all_day: { type: 'boolean', description: 'Whether this is an all-day event' },
@@ -315,7 +313,7 @@ export function createUpdateEventTool(apiClient: TimeTreeAPIClient) {
         category: { type: 'number', description: 'New event category' },
         note: { type: 'string', description: 'New event notes' },
         location: { type: 'string', description: 'New event location' },
-        url: { type: 'string', description: 'New related URL' },
+        url: { type: 'string', description: 'New related URL; use an empty string to remove it' },
         attendees: {
           type: 'array',
           description: 'Replace calendar user attendee IDs',
@@ -418,7 +416,7 @@ export function createUpdateEventTool(apiClient: TimeTreeAPIClient) {
 // ============================================================================
 
 export const DeleteEventInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The UUID of the event to delete'),
 });
 
@@ -431,7 +429,7 @@ export function createDeleteEventTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The UUID of the event to delete (from get_events)' },
       },
       required: ['calendar_id', 'event_uuid'],

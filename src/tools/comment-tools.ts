@@ -7,29 +7,30 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
 import type { EventActivity } from '../types/timetree.js';
 
 export const AddEventCommentInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The event UUID to comment on'),
   content: z.string().min(1).describe('Comment content'),
   silent: z.boolean().default(true).describe('Whether to avoid push notifications when supported'),
 });
 
 export const ListEventCommentsInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The event UUID'),
 });
 
 export const UpdateEventCommentInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The event UUID'),
   comment_id: z.string().describe('The comment/activity ID'),
   content: z.string().min(1).describe('New comment content'),
 });
 
 export const DeleteEventCommentInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The event UUID'),
   comment_id: z.string().describe('The comment/activity ID'),
 });
@@ -91,7 +92,7 @@ export function createAddEventCommentTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The event UUID to comment on' },
         content: { type: 'string', description: 'Comment content' },
         silent: { type: 'boolean', description: 'Whether to avoid push notifications when supported (default: true)' },
@@ -141,7 +142,7 @@ export function createListEventCommentsTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The event UUID' },
       },
       required: ['calendar_id', 'event_uuid'],
@@ -185,7 +186,7 @@ export function createUpdateEventCommentTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The event UUID' },
         comment_id: { type: 'string', description: 'The comment/activity ID' },
         content: { type: 'string', description: 'New comment content' },
@@ -239,7 +240,7 @@ export function createDeleteEventCommentTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         event_uuid: { type: 'string', description: 'The event UUID' },
         comment_id: { type: 'string', description: 'The comment/activity ID' },
       },

@@ -26,6 +26,8 @@ import type {
   EventActivity,
   EventActivityResponse,
   EventsSyncResponse,
+  MemorialDay,
+  MemorialDaysResponse,
   UpdateEventInput,
   UpdateEventResponse,
   UpdateMemoInput,
@@ -39,6 +41,7 @@ import {
   EventActivitiesResponseSchema,
   EventActivityResponseSchema,
   EventsSyncResponseSchema,
+  MemorialDaysResponseSchema,
   UpdateEventResponseSchema,
 } from '../types/timetree.js';
 
@@ -75,6 +78,43 @@ function todayUtcMidnight(): number {
 
 function createClientUuid(): string {
   return randomUUID().replace(/-/g, '');
+}
+
+type EventAttachmentInput = NonNullable<CreateEventInput['attachment']>;
+
+/**
+ * Shape an attachment for TimeTree writes.
+ * The event URL is stored as attachment.url (a top-level url is ignored), and an
+ * empty checklist must be sent as null because TimeTree rejects [].
+ */
+export function toAttachmentPayload(
+  attachment: EventAttachmentInput | null | undefined,
+  url: string | undefined
+): EventAttachmentInput | null | undefined {
+  if (url === undefined && attachment == null) {
+    return attachment;
+  }
+
+  const payload: EventAttachmentInput = { ...(attachment ?? {}) };
+  if (url !== undefined) {
+    payload.url = url || null;
+  }
+  if (Array.isArray(payload.checklist) && payload.checklist.length === 0) {
+    payload.checklist = null;
+  }
+  return payload;
+}
+
+/** Keep the attachment fields TimeTree drops when an update omits them. */
+function existingAttachmentFields(event: Event): EventAttachmentInput {
+  const attachment = event.attachment;
+  return {
+    ...(attachment?.url && { url: attachment.url }),
+    ...(attachment?.checklist?.length && { checklist: attachment.checklist }),
+    ...(attachment?.virtual_user_attendees?.length && {
+      virtual_user_attendees: attachment.virtual_user_attendees,
+    }),
+  };
 }
 
 export class TimeTreeAPIClient {
@@ -275,6 +315,30 @@ export class TimeTreeAPIClient {
     }
   }
 
+  /** Get public holidays and memorial days for countries within [from, to). */
+  async getMemorialDays(countryIsos: string[], from: Date, to: Date): Promise<MemorialDay[]> {
+    await this.ensureAuthenticated();
+
+    const params = new URLSearchParams();
+    for (const country of countryIsos) params.append('country_iso[]', country);
+    params.set('from', from.toISOString());
+    params.set('to', to.toISOString());
+    const url = `${TIMETREE_CONFIG.V2_BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.MEMORIAL_DAYS}?${params}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager.getHttpClient().get<MemorialDaysResponse>(url);
+      });
+      return MemorialDaysResponseSchema.parse(response).memorialdays.filter((day) => !day.deactivated_at);
+    } catch (error) {
+      logger.error('Failed to fetch memorial days', { countryIsos, error });
+      throw new TimeTreeAPIError(
+        `Failed to fetch holidays: ${getErrorMessage(error)}`,
+        getStatusCode(error)
+      );
+    }
+  }
+
   async updateCalendarLabels(
     calendarId: string,
     labelUpdates: CalendarLabelUpdateInput[]
@@ -405,12 +469,14 @@ export class TimeTreeAPIClient {
     logger.info('Creating event', { calendarId, title: eventData.title });
 
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CREATE_EVENT(calendarId)}`;
+    const { url: eventUrl, ...rest } = eventData;
+    const body = { ...rest, attachment: toAttachmentPayload(rest.attachment, eventUrl) };
 
     try {
       const response = await this.rateLimiter.executeWithRetry(async () => {
         return await this.authManager
           .getHttpClient()
-          .post<CreateEventResponse>(url, eventData, undefined, true);
+          .post<CreateEventResponse>(url, body, undefined, true);
       });
 
       const validated = CreateEventResponseSchema.parse(response);
@@ -455,10 +521,21 @@ export class TimeTreeAPIClient {
     )}`;
 
     try {
+      const { url: eventUrl, ...body } = updateData;
+      if (eventUrl !== undefined || body.attachment != null) {
+        // TimeTree replaces attachment fields inconsistently on partial updates, so send
+        // the current url/checklist/virtual attendees together with the changes.
+        const current = await this.getEvent(calendarId, eventUuid);
+        body.attachment = toAttachmentPayload(
+          { ...existingAttachmentFields(current), ...(body.attachment ?? {}) },
+          eventUrl
+        );
+      }
+
       const response = await this.rateLimiter.executeWithRetry(async () => {
         return await this.authManager
           .getHttpClient()
-          .put<UpdateEventResponse>(url, updateData, undefined, true);
+          .put<UpdateEventResponse>(url, body, undefined, true);
       });
 
       const validated = UpdateEventResponseSchema.parse(response);
@@ -487,10 +564,33 @@ export class TimeTreeAPIClient {
     }
   }
 
-  /** Fetch a single event by UUID using the sync endpoint with targeted search. */
+  /** Fetch a single event by UUID. */
+  async getEvent(calendarId: string, eventUuid: string): Promise<Event> {
+    await this.ensureAuthenticated();
+
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENT(calendarId, eventUuid)}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager.getHttpClient().get<CreateEventResponse>(url);
+      });
+      return CreateEventResponseSchema.parse(response).event;
+    } catch (error) {
+      if (getStatusCode(error) === 404) {
+        throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
+      }
+      throw error;
+    }
+  }
+
+  /** Fetch a single event by UUID, or null when it does not exist. */
   private async getEventByUuid(calendarId: string, eventUuid: string): Promise<Event | null> {
-    const events = await this.syncEvents(calendarId, 0);
-    return events.find((event) => event.uuid === eventUuid) || null;
+    try {
+      return await this.getEvent(calendarId, eventUuid);
+    } catch (error) {
+      if (getStatusCode(error) === 404) return null;
+      throw error;
+    }
   }
 
   /**

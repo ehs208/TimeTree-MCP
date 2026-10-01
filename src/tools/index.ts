@@ -23,6 +23,7 @@ import {
   createDeleteEventTool,
 } from './event-crud-tools.js';
 import { createGetEventsTool, createGetUpdatedEventsTool } from './event-tools.js';
+import { createGetHolidaysTool } from './holiday-tools.js';
 import {
   createCreateMemoTool,
   createDeleteMemoTool,
@@ -50,5 +51,6 @@ export function registerTools(apiClient: TimeTreeAPIClient) {
     createUpdateCalendarLabelsTool(apiClient),
     createGetCalendarMembersTool(apiClient),
     createGetCalendarVirtualMembersTool(apiClient),
+    createGetHolidaysTool(apiClient),
   ];
 }
