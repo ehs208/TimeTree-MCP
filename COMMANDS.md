@@ -48,7 +48,7 @@ Returns all active calendars with IDs, names, and participant info.
 Fetches all events from a calendar, sorted by start time, with optional client-side filtering.
 Results include memos (`category=2`) unless `include_memos` is `false`.
 
-When `start_before` is set, recurring events are expanded into each occurrence in the range, so "next week" queries include weekly meetings. Occurrences share the series `uuid` and are marked `is_recurring_occurrence: true`; updating or deleting that `uuid` changes the whole series. Supported rules: daily, weekly, monthly, and yearly with interval, count, until, weekdays (including "last Friday"), month days, and months. Other rules are returned once, unexpanded.
+When `start_before` is set, recurring events are expanded into each occurrence in the range, so "next week" queries include weekly meetings. Occurrences share the series `uuid` and are marked `is_recurring_occurrence: true`; updating or deleting that `uuid` changes the whole series. Supported rules: daily, weekly, monthly, and yearly with interval, count, until, weekdays (including "last Friday" in a month), month days, and months; deleted occurrences (EXDATE) are skipped. Other rules, such as "20th Monday of the year", are returned once, unexpanded. Each series is capped at 500 occurrences per call; capped series are listed in `truncated_series`.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|

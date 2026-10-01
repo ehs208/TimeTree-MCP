@@ -134,6 +134,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
 
         // Each entry is one row in the result: a single event or one occurrence of a series.
         let filteredEvents: Array<{ event: Event; start_at: number; end_at: number; occurrence: boolean }> = [];
+        const truncatedSeries: string[] = [];
         for (const event of matchingEvents) {
           const recurrence =
             expand_recurring && start_before !== undefined ? parseRecurrence(event.recurrences) : null;
@@ -146,7 +147,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           }
 
           const duration = event.end_at - event.start_at;
-          const occurrences = expandRecurrence(recurrence, {
+          const { occurrences, truncated } = expandRecurrence(recurrence, {
             start: event.start_at,
             timeZone: event.start_timezone,
             windowStart: start_after === undefined ? Number.NEGATIVE_INFINITY : start_after + 1,
@@ -156,6 +157,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           for (const startAt of occurrences) {
             filteredEvents.push({ event, start_at: startAt, end_at: startAt + duration, occurrence: true });
           }
+          if (truncated) truncatedSeries.push(event.uuid);
         }
         filteredEvents.sort((a, b) => a.start_at - b.start_at);
 
@@ -199,6 +201,10 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           events: formattedEvents,
           total: formattedEvents.length,
           total_fetched: events.length,
+          ...(truncatedSeries.length && {
+            truncated_series: truncatedSeries,
+            truncation_note: `Each recurring series is limited to ${MAX_OCCURRENCES_PER_EVENT} occurrences; narrow start_after/start_before to see the rest.`,
+          }),
         };
 
         logger.info('Tool: get_events completed', {

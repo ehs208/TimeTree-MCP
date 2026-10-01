@@ -288,6 +288,26 @@ test('get_events expands recurring events within start_before and skips EXDATEs'
   assert.deepEqual(optedOut.events.map((event) => event.uuid), ['series', 'exception']);
 });
 
+test('get_events reports series truncated by the occurrence cap', async () => {
+  const daily = makeEvent({
+    uuid: 'daily',
+    start_at: Date.parse('2026-01-01T00:00:00Z'),
+    end_at: Date.parse('2026-01-01T01:00:00Z'),
+    recurrences: ['RRULE:FREQ=DAILY'],
+  });
+  const tool = createGetEventsTool({ getEventsByCalendar: async () => [daily] });
+
+  const result = parseToolText(await tool.handler({
+    calendar_id: '123',
+    start_after: Date.parse('2025-12-31T00:00:00Z'),
+    start_before: Date.parse('2028-01-01T00:00:00Z'),
+  }));
+
+  assert.equal(result.total, 500);
+  assert.deepEqual(result.truncated_series, ['daily']);
+  assert.match(result.truncation_note, /500 occurrences/);
+});
+
 test('get_recent_activity names status codes, joins member names, and filters by since', async () => {
   const tool = createGetRecentActivityTool({
     getLatestEventActivities: async (calendarIds) => {

@@ -6,8 +6,12 @@
  * event whose parent_id is the series UUID, so exceptions need no special handling here.
  *
  * Supported: FREQ=DAILY|WEEKLY|MONTHLY|YEARLY with INTERVAL, COUNT, UNTIL, BYDAY
- * (including ordinals such as 2MO or -1FR for MONTHLY/YEARLY), BYMONTHDAY, BYMONTH, WKST.
- * Rules using other parts return null so callers can fall back to the unexpanded event.
+ * (including ordinals such as 2MO or -1FR for MONTHLY, and for YEARLY with BYMONTH),
+ * BYMONTHDAY, BYMONTH, WKST. Rules using other parts return null so callers can fall
+ * back to the unexpanded event.
+ *
+ * Local times that fall in a DST gap are shifted forward using the offset before the gap,
+ * and ambiguous times use the first occurrence, as RFC 5545 section 3.3.5 specifies.
  */
 
 const WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
@@ -83,6 +87,10 @@ function parseRule(value: string): Rule | null {
   const byMonthDay = numbers('BYMONTHDAY');
   const byMonth = numbers('BYMONTH');
   if ([...byMonthDay, ...byMonth].some((n) => !Number.isInteger(n) || n === 0)) return null;
+
+  // BYMONTHDAY is not valid for WEEKLY, and year-scoped ordinals (e.g. YEARLY;BYDAY=20MO) are not supported.
+  if (freq === 'WEEKLY' && byMonthDay.length) return null;
+  if (freq === 'YEARLY' && !byMonth.length && byDay.some((d) => d.ordinal !== undefined)) return null;
 
   const until = parts.has('UNTIL') ? parseDateValue(parts.get('UNTIL')!) : undefined;
   if (until === null) return null;
@@ -162,17 +170,27 @@ function toLocal(instant: number, formatter: Intl.DateTimeFormat): LocalDate & L
   };
 }
 
-/** Convert a wall-clock time in the formatter's time zone to epoch milliseconds. */
+function offsetAt(instant: number, formatter: Intl.DateTimeFormat): number {
+  const local = toLocal(instant, formatter);
+  return Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second) - instant;
+}
+
+/**
+ * Convert a wall-clock time in the formatter's time zone to epoch milliseconds.
+ * Ambiguous times (clocks moved back) resolve to the earlier instant; nonexistent times
+ * (clocks moved forward) use the offset in effect before the gap, per RFC 5545.
+ */
 function fromLocal(date: LocalDate, time: LocalTime, formatter: Intl.DateTimeFormat): number {
   const wallAsUtc = Date.UTC(date.year, date.month - 1, date.day, time.hour, time.minute, time.second);
-  let guess = wallAsUtc;
-  for (let i = 0; i < 2; i++) {
-    const local = toLocal(guess, formatter);
-    const offset =
-      Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second) - guess;
-    guess = wallAsUtc - offset;
-  }
-  return guess;
+  const offsetBefore = offsetAt(wallAsUtc - DAY_MS / 2, formatter);
+  const offsetAfter = offsetAt(wallAsUtc + DAY_MS / 2, formatter);
+
+  const matches = [offsetBefore, offsetAfter]
+    .map((offset) => wallAsUtc - offset)
+    .filter((instant) => offsetAt(instant, formatter) === wallAsUtc - instant);
+  if (matches.length) return Math.min(...matches);
+
+  return wallAsUtc - offsetBefore;
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -238,7 +256,13 @@ function periodDates(rule: Rule, start: LocalDate, period: number): LocalDate[] 
   switch (rule.freq) {
     case 'DAILY': {
       const date = addDays(start, period * rule.interval);
-      return rule.byMonth.length && !rule.byMonth.includes(date.month) ? [] : [date];
+      if (rule.byMonth.length && !rule.byMonth.includes(date.month)) return [];
+      if (rule.byDay.length && !rule.byDay.some((d) => d.weekday === weekdayOf(date))) return [];
+      if (rule.byMonthDay.length) {
+        const length = daysInMonth(date.year, date.month);
+        if (!rule.byMonthDay.some((n) => (n > 0 ? n : length + n + 1) === date.day)) return [];
+      }
+      return [date];
     }
     case 'WEEKLY': {
       const offsetToWeekStart = (weekdayOf(start) - rule.weekStart + 7) % 7;
@@ -258,7 +282,12 @@ function periodDates(rule: Rule, start: LocalDate, period: number): LocalDate[] 
     }
     case 'YEARLY': {
       const year = start.year + period * rule.interval;
-      const months = rule.byMonth.length ? [...rule.byMonth].sort((a, b) => a - b) : [start.month];
+      // Without BYMONTH, BYDAY/BYMONTHDAY apply to every month; otherwise only DTSTART's month.
+      const months = rule.byMonth.length
+        ? [...rule.byMonth].sort((a, b) => a - b)
+        : rule.byDay.length || rule.byMonthDay.length
+          ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+          : [start.month];
       return months.flatMap((month) => daysInMonthMatching(year, month, rule, start));
     }
   }
@@ -275,8 +304,14 @@ export interface ExpandOptions {
   maxOccurrences: number;
 }
 
+export interface ExpandResult {
+  occurrences: number[];
+  /** True when maxOccurrences cut the expansion short. */
+  truncated: boolean;
+}
+
 /** Expand a parsed recurrence into occurrence start times (epoch ms) within a window. */
-export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOptions): number[] {
+export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOptions): ExpandResult {
   const { rule, exdates } = recurrence;
   let formatter: Intl.DateTimeFormat;
   try {
@@ -300,8 +335,8 @@ export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOp
       if (compareDates(date, startDate) < 0) continue;
       const instant = compareDates(date, startDate) === 0 ? options.start : fromLocal(date, startTime, formatter);
 
-      if (rule.until !== undefined && instant > rule.until) return occurrences;
-      if (rule.count !== undefined && generated >= rule.count) return occurrences;
+      if (rule.until !== undefined && instant > rule.until) return { occurrences, truncated: false };
+      if (rule.count !== undefined && generated >= rule.count) return { occurrences, truncated: false };
       generated += 1;
 
       if (instant >= options.windowEnd) {
@@ -309,13 +344,13 @@ export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOp
         break;
       }
       if (instant >= options.windowStart && !exdates.has(instant)) {
+        if (occurrences.length >= options.maxOccurrences) return { occurrences, truncated: true };
         occurrences.push(instant);
-        if (occurrences.length >= options.maxOccurrences) return occurrences;
       }
     }
 
     if (passedEnd) break;
   }
 
-  return occurrences;
+  return { occurrences, truncated: false };
 }

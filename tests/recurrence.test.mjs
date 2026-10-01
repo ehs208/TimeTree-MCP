@@ -13,7 +13,7 @@ function expand(lines, start, timeZone, windowStart, windowEnd, maxOccurrences =
     windowStart: Date.parse(windowStart),
     windowEnd: Date.parse(windowEnd),
     maxOccurrences,
-  }).map(iso);
+  }).occurrences.map(iso);
 }
 
 test('weekly BYDAY with COUNT and EXDATE matches the TimeTree web app', () => {
@@ -96,12 +96,65 @@ test('window bounds and the occurrence cap are applied', () => {
     expand(['RRULE:FREQ=DAILY'], '2026-01-01T00:00:00Z', 'UTC', '2026-10-10T00:00:00Z', '2026-10-13T00:00:00Z'),
     ['2026-10-10T00:00:00.000Z', '2026-10-11T00:00:00.000Z', '2026-10-12T00:00:00.000Z']
   );
-  assert.equal(expand(['RRULE:FREQ=DAILY'], '2026-01-01T00:00:00Z', 'UTC', '2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z', 5).length, 5);
+  const capped = expandRecurrence(parseRecurrence(['RRULE:FREQ=DAILY']), {
+    start: Date.parse('2026-01-01T00:00:00Z'),
+    timeZone: 'UTC',
+    windowStart: Date.parse('2026-01-01T00:00:00Z'),
+    windowEnd: Date.parse('2027-01-01T00:00:00Z'),
+    maxOccurrences: 5,
+  });
+  assert.equal(capped.occurrences.length, 5);
+  assert.equal(capped.truncated, true);
+  const exact = expandRecurrence(parseRecurrence(['RRULE:FREQ=DAILY;COUNT=5']), {
+    start: Date.parse('2026-01-01T00:00:00Z'),
+    timeZone: 'UTC',
+    windowStart: Date.parse('2026-01-01T00:00:00Z'),
+    windowEnd: Date.parse('2027-01-01T00:00:00Z'),
+    maxOccurrences: 5,
+  });
+  assert.equal(exact.truncated, false);
+});
+
+test('daily rules honor BYDAY and BYMONTHDAY filters', () => {
+  // Weekdays only, starting Friday 2026-10-02: weekends are skipped and do not consume COUNT.
+  assert.deepEqual(
+    expand(['RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=3'], '2026-10-02T00:00:00Z', 'UTC', '2026-10-01T00:00:00Z', '2026-11-01T00:00:00Z'),
+    ['2026-10-02T00:00:00.000Z', '2026-10-05T00:00:00.000Z', '2026-10-06T00:00:00.000Z']
+  );
+  assert.deepEqual(
+    expand(['RRULE:FREQ=DAILY;BYMONTHDAY=1,-1;COUNT=3'], '2026-10-01T00:00:00Z', 'UTC', '2026-10-01T00:00:00Z', '2027-01-01T00:00:00Z'),
+    ['2026-10-01T00:00:00.000Z', '2026-10-31T00:00:00.000Z', '2026-11-01T00:00:00.000Z']
+  );
+});
+
+test('yearly BYDAY or BYMONTHDAY without BYMONTH spans the whole year', () => {
+  assert.deepEqual(
+    expand(['RRULE:FREQ=YEARLY;BYMONTHDAY=15;COUNT=3'], '2026-10-15T00:00:00Z', 'UTC', '2026-01-01T00:00:00Z', '2028-01-01T00:00:00Z'),
+    ['2026-10-15T00:00:00.000Z', '2026-11-15T00:00:00.000Z', '2026-12-15T00:00:00.000Z']
+  );
+  // Year-scoped ordinals are not supported, so the event falls back to unexpanded.
+  assert.equal(parseRecurrence(['RRULE:FREQ=YEARLY;BYDAY=1MO']), null);
+  assert.ok(parseRecurrence(['RRULE:FREQ=YEARLY;BYMONTH=5;BYDAY=2SU']));
+});
+
+test('DST gaps shift forward and ambiguous times use the first occurrence', () => {
+  // 02:30 does not exist in New York on 2026-03-08; RFC 5545 interprets it with the
+  // pre-gap offset (EST), which is 03:30 EDT.
+  assert.deepEqual(
+    expand(['RRULE:FREQ=WEEKLY;COUNT=3'], '2026-03-01T07:30:00Z', 'America/New_York', '2026-02-01T00:00:00Z', '2026-04-01T00:00:00Z'),
+    ['2026-03-01T07:30:00.000Z', '2026-03-08T07:30:00.000Z', '2026-03-15T06:30:00.000Z']
+  );
+  // 01:30 happens twice in New York on 2026-11-01; use the first (EDT).
+  assert.deepEqual(
+    expand(['RRULE:FREQ=WEEKLY;COUNT=2'], '2026-10-25T05:30:00Z', 'America/New_York', '2026-10-01T00:00:00Z', '2026-12-01T00:00:00Z'),
+    ['2026-10-25T05:30:00.000Z', '2026-11-01T05:30:00.000Z']
+  );
 });
 
 test('unsupported rules are not expanded', () => {
   assert.equal(parseRecurrence(['RRULE:FREQ=MONTHLY;BYDAY=MO,TU;BYSETPOS=-1']), null);
   assert.equal(parseRecurrence(['RRULE:FREQ=HOURLY']), null);
+  assert.equal(parseRecurrence(['RRULE:FREQ=WEEKLY;BYMONTHDAY=1']), null);
   assert.equal(parseRecurrence(['RRULE:FREQ=DAILY', 'RDATE:20261020T000000Z']), null);
   assert.equal(parseRecurrence([]), null);
   assert.equal(parseRecurrence(undefined), null);
