@@ -66,6 +66,8 @@ npm install
 npm run typecheck
 npm test
 npm run build
+# or run all CI checks at once:
+npm run verify
 ```
 
 For manual MCP inspection:
@@ -119,3 +121,17 @@ This is primarily a project guide, not a full contribution handbook. For contrib
 - Do not add dependencies unless the benefit is clear and documented.
 - Make privacy-preserving behavior the default.
 - When uncertain about upstream behavior, document the observation method without storing sensitive captures.
+
+## Code Review Rules
+
+Automated and human reviewers should flag these repository-specific issues. Leave formatting and lint-style nits to CI.
+
+- Any write to stdout in `src/` (`console.log`, `process.stdout.write`). MCP uses stdout for JSON-RPC; logs must go through `src/utils/logger.ts`.
+- Credentials, cookies, CSRF tokens, session IDs, or raw upstream response bodies reaching logs or tool responses without the shared logger's masking.
+- Tool responses that forward raw upstream payloads instead of shaped, documented fields.
+- TimeTree requests that bypass `rateLimiter.executeWithRetry`.
+- Treating the `since` sync cursor as a date filter.
+- User-visible tool changes without matching updates to `README.md`, `README.ko.md`, `README.ja.md`, `COMMANDS.md`, and `CHANGELOG.md` under `[Unreleased]`.
+- Real account data in tests, fixtures, or docs: emails, calendar names, event content, or request captures.
+- Removing `"private": true` from `package.json`, or `package.json` and `package-lock.json` versions drifting apart.
+- New runtime dependencies without a stated reason.

@@ -28,7 +28,7 @@ Use Claude, Codex, Cursor, Windsurf, and other MCP clients to read and manage yo
 
 ### Requirements
 
-- Node.js >= 18.0.0
+- Node.js >= 22
 - Git (for installation)
 - A TimeTree account
 - An MCP-compatible client (Claude Desktop, Claude Code, Codex, Antigravity, Cline, etc.)

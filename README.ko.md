@@ -28,7 +28,7 @@ Claude, Codex, Cursor, Windsurf 같은 MCP 클라이언트에서 TimeTree 캘린
 
 ### 요구사항
 
-- Node.js >= 18.0.0
+- Node.js >= 22
 - Git (설치용)
 - TimeTree 계정
 - MCP 호환 클라이언트 (Claude Desktop, Claude Code, Codex, Antigravity, Cline 등)

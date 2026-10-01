@@ -46,10 +46,9 @@ Feature suggestions are welcome, but keep in mind:
    - Follow the existing code style
    - Add/update tests if applicable
    - Update documentation
-4. **Test your changes**:
+4. **Test your changes** (the same checks CI runs):
    ```bash
-   npm run build
-   npm run dev  # for watch mode
+   npm run verify  # typecheck, tests, and audit
    ```
 5. **Commit** with a clear message:
    ```bash
@@ -59,13 +58,13 @@ Feature suggestions are welcome, but keep in mind:
    ```bash
    git push origin feature/your-feature-name
    ```
-7. **Open a Pull Request** against `main`
+7. **Open a Pull Request** against `main`, and keep **Allow edits by maintainers** checked so maintainers can push small fixes such as docs or merge updates to your branch
 
 ## Development Setup
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 22
 - npm or yarn
 - A TimeTree account (for testing)
 
@@ -100,10 +99,15 @@ TimeTree-MCP/
 │   │   ├── auth.ts               # Authentication + CSRF token manager
 │   │   └── api.ts                # TimeTree API client (read + CRUD)
 │   ├── tools/
-│   │   ├── index.ts              # Tool registration
-│   │   ├── calendar-tools.ts     # list_calendars
-│   │   ├── event-tools.ts        # get_events, get_updated_events
-│   │   └── event-crud-tools.ts   # create_event, update_event, delete_event
+│   │   ├── index.ts                   # Tool registration
+│   │   ├── shared-schemas.ts          # Shared input schemas (calendar_id)
+│   │   ├── calendar-tools.ts          # list_calendars
+│   │   ├── calendar-metadata-tools.ts # labels, members, virtual members
+│   │   ├── event-tools.ts             # get_events, get_updated_events
+│   │   ├── event-crud-tools.ts        # create_event, update_event, delete_event
+│   │   ├── memo-tools.ts              # list/create/update/delete memos
+│   │   ├── comment-tools.ts           # event comments
+│   │   └── holiday-tools.ts           # get_holidays
 │   └── types/
 │       ├── timetree.ts           # TypeScript/Zod schemas
 │       └── label-colors.ts       # Event color mapping (label_id 1-10)
@@ -112,19 +116,29 @@ TimeTree-MCP/
 
 ### Testing
 
-Currently, testing is manual via MCP Inspector:
+Automated tests use mocked HTTP clients and never call TimeTree:
 
 ```bash
-npx @modelcontextprotocol/inspector dist/index.js
+npm test         # build + node:test suites in tests/
+npm run verify   # typecheck + tests + npm audit, as CI runs them
 ```
 
-Set environment variables:
+Add regression tests in `tests/` for parsing, request shape, and tool output changes.
+
+For manual checks against a real account, use MCP Inspector:
+
+```bash
+npm run build
+npx @modelcontextprotocol/inspector node dist/index.js
+```
+
+Set environment variables in your shell only:
 ```
 TIMETREE_EMAIL=your-email@example.com
 TIMETREE_PASSWORD=your-password
 ```
 
-**Future**: We plan to add automated tests with mocked APIs.
+Use a dedicated test calendar, and never commit real responses, calendar content, or credentials.
 
 ## Code Style
 
@@ -170,7 +184,7 @@ If TimeTree changes their API:
 ## Documentation
 
 When adding features:
-- Update README.md and README.ko.md (both English and Korean)
+- Update README.md, README.ko.md, and README.ja.md together, plus COMMANDS.md for tool parameters
 - Add JSDoc comments to public functions
 - Update CHANGELOG.md under `[Unreleased]`
 

@@ -31,7 +31,8 @@ Describe how you tested these changes:
 - [ ] Tested with MCP Inspector
 - [ ] Tested with Claude Desktop
 - [ ] Tested with Claude Code
-- [ ] Tested with actual TimeTree account
+- [ ] Tested with actual TimeTree account (dedicated test calendar; no real data committed)
+- [ ] `npm run verify` passes
 - [ ] Added/updated tests (if applicable)
 
 ### Test Environment
@@ -46,8 +47,8 @@ Add screenshots to help explain your changes.
 
 ## Documentation
 
-- [ ] Updated README.md (if needed)
-- [ ] Updated README.ko.md (if needed)
+- [ ] Updated README.md, README.ko.md, and README.ja.md together (if needed)
+- [ ] Updated COMMANDS.md for tool parameter changes (if needed)
 - [ ] Updated CHANGELOG.md under `[Unreleased]`
 - [ ] Added/updated code comments
 - [ ] Updated type definitions
@@ -61,6 +62,7 @@ Add screenshots to help explain your changes.
 - [ ] I have tested that my changes work correctly
 - [ ] No sensitive data (credentials, session IDs) is exposed
 - [ ] Rate limiting is respected (no API abuse)
+- [ ] "Allow edits by maintainers" is checked (for PRs from forks)
 
 ## Breaking Changes
 

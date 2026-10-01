@@ -13,13 +13,13 @@ fi
 
 if ! command -v node &> /dev/null; then
   echo "❌ ERROR: Node.js is not installed."
-  echo "   Please install Node.js 18 or later: https://nodejs.org"
+  echo "   Please install Node.js 22 or later: https://nodejs.org"
   exit 1
 fi
 
 NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_MAJOR" -lt 18 ]; then
-  echo "❌ ERROR: Node.js 18+ is required (found $(node -v))"
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "❌ ERROR: Node.js 22+ is required (found $(node -v))"
   echo "   Please upgrade: https://nodejs.org"
   exit 1
 fi

@@ -28,7 +28,7 @@ Claude、Codex、Cursor、Windsurf などの MCP クライアントから、Time
 
 ### 必要条件
 
-- Node.js >= 18.0.0
+- Node.js >= 22
 - Git（インストール用）
 - TimeTree アカウント
 - MCP 対応クライアント（Claude Desktop、Claude Code、Codex、Antigravity、Cline など）

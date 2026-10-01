@@ -30,7 +30,7 @@ What actually happened.
 
 ## Environment
 
-- **TimeTree MCP Version**: [e.g., 0.1.0]
+- **TimeTree MCP Version**: [e.g., 0.3.0]
 - **Node.js Version**: [run `node --version`]
 - **Operating System**: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
 - **Claude Client**: [e.g., Claude Desktop, Claude Code]
