@@ -24,6 +24,7 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 | **update_calendar_labels** | Merge-update calendar label names/colors |
 | **get_calendar_members** | Get calendar members |
 | **get_calendar_virtual_members** | Get virtual members |
+| **get_holidays** | Get public holidays and memorial days for a date range |
 
 ## Tool Details
 
@@ -43,18 +44,24 @@ Returns all active calendars with IDs, names, and participant info.
 
 ### get_events
 
-Fetches all events from a calendar with optional client-side filtering.
+Fetches all events from a calendar, sorted by start time, with optional client-side filtering.
+Results include memos (`category=2`) unless `include_memos` is `false`. Recurring events are returned once with their RRULE; occurrences are not expanded.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `calendar_id` | Yes | Calendar ID (from `list_calendars`) |
+| `calendar_id` | Yes | Calendar ID (from `list_calendars`; string or number) |
 | `start_after` | No | Unix timestamp (ms) — only return events starting after this time |
+| `start_before` | No | Unix timestamp (ms) — only return events starting before this time |
+| `query` | No | Case-insensitive keyword matched against title, note, and location |
+| `label_id` | No | Only return events with this label (1-10) |
+| `include_memos` | No | Include memos (default: true) |
 | `limit` | No | Maximum number of events to return |
 
 **Example prompts:**
 - "Show events from my Personal calendar"
 - "What's on my schedule after June 1st?"
 - "Show me the next 5 events"
+- "Find events about the dentist this month"
 
 ---
 
@@ -121,7 +128,7 @@ Updates an existing event. Only provide fields you want to change.
 | `label_id` | No | New color |
 | `note` | No | New description |
 | `location` | No | New location |
-| `url` | No | New URL |
+| `url` | No | New URL; empty string removes it |
 | `attendees` | No | Replace calendar user attendee IDs |
 | `alerts` | No | Replace notification offsets in minutes; use `[]` to clear |
 | `recurrences` | No | Replace RRULE strings |
@@ -191,6 +198,23 @@ Manage comments using TimeTree event activity endpoints.
 | `update_calendar_labels` | `calendar_id`, `labels: [{id, name?, color?}]` (omitted labels are preserved) |
 | `get_calendar_members` | `calendar_id`, optional `include_deactivated` |
 | `get_calendar_virtual_members` | `calendar_id`, optional `include_deactivated` |
+
+---
+
+### get_holidays
+
+Returns public holidays and memorial days that TimeTree shows on calendars. Read-only.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `country_iso` | Yes | ISO 3166-1 alpha-2 codes, e.g. `["KR"]` or `["KR", "JP"]` (max 5) |
+| `start_date` | Yes | First date to include (`YYYY-MM-DD`, UTC) |
+| `end_date` | Yes | Last date to include (`YYYY-MM-DD`, UTC); range up to 2 years |
+| `days_off_only` | No | Exclude observances that are working days (default: false) |
+
+**Example prompts:**
+- "Which Korean public holidays are in October?"
+- "Schedule the team offsite on a weekday that isn't a holiday in Korea or Japan"
 
 ---
 

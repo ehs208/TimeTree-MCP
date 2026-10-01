@@ -68,7 +68,7 @@ test('deleteEvent falls back to full-event-body DELETE on non-404 no-body failur
     },
     get: async (url) => {
       calls.push({ url, method: 'GET' });
-      return { events: [targetEvent], chunk: false, since: 0 };
+      return { event: targetEvent };
     },
   });
 
@@ -76,7 +76,7 @@ test('deleteEvent falls back to full-event-body DELETE on non-404 no-body failur
 
   assert.equal(deleteCount, 2);
   assert.equal(calls[0].body, undefined);
-  assert.equal(calls[1].url, 'https://timetreeapp.com/api/v1/calendar/cal-1/events/sync?since=0');
+  assert.equal(calls[1].url, 'https://timetreeapp.com/api/v1/calendar/cal-1/event/event-1');
   assert.equal(calls[2].body.uuid, 'event-1');
   assert.equal(calls[2].requiresCsrf, true);
 });
@@ -165,4 +165,90 @@ test('event comment methods use activity endpoints and filter comment activities
   assert.ok(calls.every((call) => call.method === 'GET' || call.requiresCsrf === true));
   assert.ok(calls.some((call) => call.url === 'https://timetreeapp.com/api/v1/calendar/123/event/evt/activities'));
   assert.ok(calls.some((call) => call.url === 'https://timetreeapp.com/api/v1/calendar/123/event/evt/activity/comment'));
+});
+
+test('createEvent stores url in attachment and sends an empty checklist as null', async () => {
+  const calls = [];
+  const client = makeClient({
+    post: async (url, body) => {
+      calls.push({ url, body });
+      return { event: makeEvent({ uuid: 'created' }) };
+    },
+  });
+
+  await client.createEvent('cal-1', {
+    title: 'event',
+    all_day: false,
+    start_at: 1,
+    end_at: 2,
+    url: 'https://example.com',
+    attachment: { checklist: [] },
+  });
+
+  assert.equal('url' in calls[0].body, false);
+  assert.deepEqual(calls[0].body.attachment, { checklist: null, url: 'https://example.com' });
+});
+
+test('updateEvent merges current attachment fields before sending attachment changes', async () => {
+  const calls = [];
+  const client = makeClient({
+    get: async (url) => {
+      calls.push({ method: 'GET', url });
+      return {
+        event: makeEvent({
+          uuid: 'evt',
+          attachment: { url: 'https://example.com/keep', checklist: [{ title: 'a', checked: false }] },
+        }),
+      };
+    },
+    put: async (url, body) => {
+      calls.push({ method: 'PUT', url, body });
+      return { event: makeEvent({ uuid: 'evt' }) };
+    },
+  });
+
+  await client.updateEvent('cal-1', 'evt', { attachment: { checklist: [] } });
+
+  assert.equal(calls[0].url, 'https://timetreeapp.com/api/v1/calendar/cal-1/event/evt');
+  assert.deepEqual(calls[1].body.attachment, { url: 'https://example.com/keep', checklist: null });
+});
+
+test('updateEvent without attachment changes does not fetch the current event', async () => {
+  const calls = [];
+  const client = makeClient({
+    get: async () => {
+      throw new Error('current event should not be fetched');
+    },
+    put: async (url, body) => {
+      calls.push({ url, body });
+      return { event: makeEvent({ uuid: 'evt' }) };
+    },
+  });
+
+  await client.updateEvent('cal-1', 'evt', { title: 'renamed' });
+
+  assert.deepEqual(calls[0].body, { title: 'renamed' });
+});
+
+test('getMemorialDays queries v2 memorial days and drops deactivated entries', async () => {
+  let requested;
+  const client = makeClient({
+    get: async (url) => {
+      requested = url;
+      return {
+        memorialdays: [
+          { id: 1, country_iso: 'KR', title: 'active', workday: false, start_at: 10, end_at: 10, deactivated_at: null },
+          { id: 2, country_iso: 'KR', title: 'removed', workday: false, start_at: 20, end_at: 20, deactivated_at: 5 },
+        ],
+      };
+    },
+  });
+
+  const days = await client.getMemorialDays(['KR', 'JP'], new Date('2026-10-01T00:00:00Z'), new Date('2026-11-01T00:00:00Z'));
+
+  const url = new URL(requested);
+  assert.equal(url.pathname, '/api/v2/memorialdays');
+  assert.deepEqual(url.searchParams.getAll('country_iso[]'), ['KR', 'JP']);
+  assert.equal(url.searchParams.get('from'), '2026-10-01T00:00:00.000Z');
+  assert.deepEqual(days.map((day) => day.title), ['active']);
 });

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError, TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
 import { getLabelColorName } from '../types/label-colors.js';
 import type { Event } from '../types/timetree.js';
 
@@ -18,13 +19,13 @@ const ChecklistSchema = z.array(z.object({
 const VirtualUserAttendeesSchema = z.array(z.union([z.string(), z.number()]));
 
 export const ListMemosInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID to list memos from'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID to list memos from'),
   updated_after: z.number().optional().describe('Only return memos updated after this Unix timestamp in milliseconds'),
   limit: z.number().positive().optional().describe('Optional limit on number of memos returned'),
 });
 
 export const CreateMemoInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID to create the memo in'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID to create the memo in'),
   title: z.string().min(1).describe('Memo title'),
   note: z.string().optional().describe('Memo body text'),
   label_id: z.number().min(1).max(10).optional().describe('Color label ID (1-10)'),
@@ -36,19 +37,19 @@ export const CreateMemoInputSchema = z.object({
 });
 
 export const UpdateMemoInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   memo_uuid: z.string().describe('The memo UUID (same as event UUID)'),
   title: z.string().min(1).optional().describe('New memo title'),
   note: z.string().optional().describe('New memo body text'),
   label_id: z.number().min(1).max(10).optional().describe('New color label ID (1-10)'),
   location: z.string().optional().describe('New memo location'),
-  url: z.string().optional().describe('New related URL'),
+  url: z.string().optional().describe('New related URL; use an empty string to remove it'),
   checklist: ChecklistSchema.optional().describe('Replace checklist items; use [] to clear'),
   virtual_user_attendees: VirtualUserAttendeesSchema.optional().describe('Replace virtual member attendees; use [] to clear'),
 });
 
 export const DeleteMemoInputSchema = z.object({
-  calendar_id: z.number().describe('The calendar ID'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID'),
   memo_uuid: z.string().describe('The memo UUID (same as event UUID)'),
 });
 
@@ -123,7 +124,7 @@ export function createListMemosTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID to list memos from' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         updated_after: { type: 'number', description: 'Only return memos updated after this Unix timestamp in milliseconds' },
         limit: { type: 'number', description: 'Optional limit on number of memos returned' },
       },
@@ -173,7 +174,7 @@ export function createCreateMemoTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID to create the memo in' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         title: { type: 'string', description: 'Memo title' },
         note: { type: 'string', description: 'Memo body text' },
         label_id: { type: 'number', description: 'Color label ID (1-10)' },
@@ -247,13 +248,13 @@ export function createUpdateMemoTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         memo_uuid: { type: 'string', description: 'The memo UUID (same as event UUID)' },
         title: { type: 'string', description: 'New memo title' },
         note: { type: 'string', description: 'New memo body text' },
         label_id: { type: 'number', description: 'New color label ID (1-10)' },
         location: { type: 'string', description: 'New memo location' },
-        url: { type: 'string', description: 'New related URL' },
+        url: { type: 'string', description: 'New related URL; use an empty string to remove it' },
         checklist: {
           type: 'array',
           description: 'Replace checklist items; use [] to clear',
@@ -320,7 +321,7 @@ export function createDeleteMemoTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: { type: 'number', description: 'The calendar ID' },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         memo_uuid: { type: 'string', description: 'The memo UUID (same as event UUID)' },
       },
       required: ['calendar_id', 'memo_uuid'],

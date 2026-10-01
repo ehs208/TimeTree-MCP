@@ -20,6 +20,7 @@ Claude、Codex、Cursor、Windsurf などの MCP クライアントから、Time
 - 🗒️ **メモ管理** - TimeTree メモの一覧取得、作成、更新、削除
 - 💬 **コメント管理** - イベントコメントの追加、一覧取得、更新、削除
 - 🏷️ **カレンダーメタデータ** - ラベルの取得/更新、メンバー/仮想メンバーの確認
+- 🎌 **祝日** - 国と期間を指定して祝日を取得
 - 🔐 **安全な認証** - メールアドレス/パスワード認証（MCP 設定にのみ保存）
 - ⚡ **レート制限** - Token Bucket アルゴリズムで API 負荷を抑制
 - 🔄 **自動ページネーション** - 複数ページにまたがるイベントを自動取得
@@ -122,7 +123,7 @@ npm run build
 ### MCP ツール
 
 - **list_calendars** - 参加ユーザー情報付きですべてのカレンダーを一覧表示
-- **get_events** - 自動ページネーションでカレンダーのイベントを取得
+- **get_events** - 自動ページネーションでカレンダーのイベントを取得（開始時刻順、キーワード/ラベル/期間フィルター）
 - **get_updated_events** - 指定時刻以降に更新されたイベントを取得（効率的な差分同期）
 - **create_event** - カレンダーに新しいイベントを作成（通知、繰り返し、参加者、チェックリストに対応）
 - **update_event** - 既存イベントを更新
@@ -131,6 +132,7 @@ npm run build
 - **add_event_comment / list_event_comments / update_event_comment / delete_event_comment** - イベントコメントを管理
 - **get_calendar_labels / update_calendar_labels** - カレンダーラベルを取得またはマージ更新
 - **get_calendar_members / get_calendar_virtual_members** - カレンダーメンバーのメタデータを取得
+- **get_holidays** - 期間内の祝日と記念日を取得
 
 📖 パラメータと詳しい使い方は [COMMANDS.md](COMMANDS.md) を参照してください。
 

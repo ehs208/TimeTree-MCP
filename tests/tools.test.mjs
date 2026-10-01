@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { registerTools } from '../.test-dist/tools/index.js';
 import { createCreateEventTool, createUpdateEventTool } from '../.test-dist/tools/event-crud-tools.js';
 import { createCreateMemoTool } from '../.test-dist/tools/memo-tools.js';
+import { createGetEventsTool } from '../.test-dist/tools/event-tools.js';
+import { createGetHolidaysTool } from '../.test-dist/tools/holiday-tools.js';
+import { createGetCalendarLabelsTool } from '../.test-dist/tools/calendar-metadata-tools.js';
 
 function makeEvent(overrides = {}) {
   return {
@@ -45,6 +48,7 @@ test('registerTools exposes baseline plus Wave 1 tools', () => {
     'get_calendar_members',
     'get_calendar_virtual_members',
     'get_events',
+    'get_holidays',
     'get_updated_events',
     'list_calendars',
     'list_event_comments',
@@ -166,4 +170,77 @@ test('create_memo wraps input as category=2 memo data with UTC date', async () =
   assert.equal(captured.data.start_at, Date.UTC(2026, 4, 25));
   assert.deepEqual(captured.data.checklist, [{ title: 'memo item', checked: true }]);
   assert.equal(parseToolText(result).memo.memo_date, '2026-05-25');
+});
+
+test('get_events accepts numeric IDs, filters, and sorts by start time', async () => {
+  let requestedId;
+  const tool = createGetEventsTool({
+    getEventsByCalendar: async (calendarId) => {
+      requestedId = calendarId;
+      return [
+        makeEvent({ uuid: 'late', title: 'Team sync', start_at: 300, end_at: 301, label_id: 3 }),
+        makeEvent({ uuid: 'memo', title: 'Team memo', start_at: 50, end_at: 50, category: 2, label_id: 3 }),
+        makeEvent({ uuid: 'early', title: 'Lunch', note: 'team lunch', start_at: 100, end_at: 101, label_id: 3 }),
+        makeEvent({ uuid: 'other-label', title: 'Team retro', start_at: 200, end_at: 201, label_id: 6 }),
+        makeEvent({ uuid: 'too-late', title: 'Team party', start_at: 900, end_at: 901, label_id: 3 }),
+      ];
+    },
+  });
+
+  const result = parseToolText(await tool.handler({
+    calendar_id: 123,
+    query: 'TEAM',
+    label_id: 3,
+    include_memos: false,
+    start_before: 500,
+  }));
+
+  assert.equal(requestedId, '123');
+  assert.equal(result.calendar_id, '123');
+  assert.deepEqual(result.events.map((event) => event.uuid), ['early', 'late']);
+});
+
+test('calendar tools accept string calendar IDs from list_calendars', async () => {
+  let requestedId;
+  const tool = createGetCalendarLabelsTool({
+    getCalendarLabels: async (calendarId) => {
+      requestedId = calendarId;
+      return [];
+    },
+  });
+
+  const result = await tool.handler({ calendar_id: '123' });
+
+  assert.equal(result.isError, undefined);
+  assert.equal(requestedId, '123');
+  assert.equal((await tool.handler({ calendar_id: 'abc' })).isError, true);
+});
+
+test('get_holidays returns sorted days and can exclude working-day observances', async () => {
+  let captured;
+  const tool = createGetHolidaysTool({
+    getMemorialDays: async (countries, from, to) => {
+      captured = { countries, from: from.toISOString(), to: to.toISOString() };
+      return [
+        { id: 2, country_iso: 'KR', title: 'Hangul Day', workday: false, start_at: Date.UTC(2026, 9, 9), end_at: Date.UTC(2026, 9, 9) },
+        { id: 3, country_iso: 'KR', title: 'Observance', workday: true, start_at: Date.UTC(2026, 9, 5), end_at: Date.UTC(2026, 9, 5) },
+        { id: 1, country_iso: 'KR', title: 'Foundation Day', workday: false, start_at: Date.UTC(2026, 9, 3), end_at: Date.UTC(2026, 9, 3) },
+      ];
+    },
+  });
+
+  const result = parseToolText(await tool.handler({
+    country_iso: ['kr', 'KR'],
+    start_date: '2026-10-01',
+    end_date: '2026-10-31',
+    days_off_only: true,
+  }));
+
+  assert.deepEqual(captured, { countries: ['KR'], from: '2026-10-01T00:00:00.000Z', to: '2026-11-01T00:00:00.000Z' });
+  assert.deepEqual(result.holidays.map((day) => [day.date, day.title]), [
+    ['2026-10-03', 'Foundation Day'],
+    ['2026-10-09', 'Hangul Day'],
+  ]);
+  const tooLong = await tool.handler({ country_iso: ['KR'], start_date: '2026-01-01', end_date: '2029-01-01' });
+  assert.equal(tooLong.isError, true);
 });

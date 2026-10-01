@@ -8,15 +8,30 @@ import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
 import { getLabelColorName } from '../types/label-colors.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
 
 export const GetEventsInputSchema = z.object({
-  calendar_id: z.string().describe('The calendar ID to fetch events from'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID to fetch events from'),
   start_after: z
     .number()
     .optional()
     .describe(
       'Optional Unix timestamp in milliseconds. Only return events starting after this time.'
     ),
+  start_before: z
+    .number()
+    .optional()
+    .describe('Optional Unix timestamp in milliseconds. Only return events starting before this time.'),
+  query: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Optional case-insensitive keyword matched against title, note, and location.'),
+  label_id: z.number().int().min(1).max(10).optional().describe('Optional label ID (1-10) filter.'),
+  include_memos: z
+    .boolean()
+    .default(true)
+    .describe('Whether to include memos (category=2). Defaults to true.'),
   limit: z
     .number()
     .optional()
@@ -24,7 +39,7 @@ export const GetEventsInputSchema = z.object({
 });
 
 export const GetUpdatedEventsInputSchema = z.object({
-  calendar_id: z.string().describe('The calendar ID to fetch updated events from'),
+  calendar_id: CalendarIdSchema.describe('The calendar ID to fetch updated events from'),
   updated_after: z
     .number()
     .describe('Unix timestamp in milliseconds. Only return events updated after this time.'),
@@ -38,22 +53,37 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_events',
     description:
-      'Get all events from a specific TimeTree calendar. Automatically handles pagination to fetch all events. ' +
+      'Get events from a specific TimeTree calendar, sorted by start time. Automatically handles pagination. ' +
+      'Supports filtering by start time range, keyword, label, and whether to include memos. ' +
+      'Recurring events are returned once with their RRULE; occurrences are not expanded. ' +
       'Returns event details including title, start/end times, location, notes, label color, and more. ' +
       'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
       '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: {
-          type: 'string',
-          description: 'The calendar ID to fetch events from',
-        },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         start_after: {
           type: 'number',
           description:
             'Optional Unix timestamp in milliseconds. Only return events starting after this time. ' +
             'If user provides a date like "2026-02-01", convert it to Unix timestamp (e.g., 1769904000000).',
+        },
+        start_before: {
+          type: 'number',
+          description: 'Optional Unix timestamp in milliseconds. Only return events starting before this time.',
+        },
+        query: {
+          type: 'string',
+          description: 'Optional case-insensitive keyword matched against title, note, and location.',
+        },
+        label_id: {
+          type: 'number',
+          description: 'Optional label ID (1-10) filter.',
+        },
+        include_memos: {
+          type: 'boolean',
+          description: 'Whether to include memos (category=2). Defaults to true.',
         },
         limit: {
           type: 'number',
@@ -65,17 +95,27 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
     handler: async (args: unknown) => {
       try {
         const input = GetEventsInputSchema.parse(args);
-        const { calendar_id, start_after, limit } = input;
+        const { start_after, start_before, query, label_id, include_memos, limit } = input;
+        const calendar_id = String(input.calendar_id);
 
-        logger.info('Tool: get_events called', { calendar_id, start_after, limit });
+        logger.info('Tool: get_events called', { calendar_id, start_after, start_before, limit });
 
         const events = await apiClient.getEventsByCalendar(calendar_id, 0);
 
-        // Filter by start_after if provided
-        let filteredEvents = events;
-        if (start_after) {
-          filteredEvents = events.filter((event) => event.start_at > start_after);
-        }
+        const keyword = query?.toLowerCase();
+        let filteredEvents = events
+          .filter((event) => start_after === undefined || event.start_at > start_after)
+          .filter((event) => start_before === undefined || event.start_at < start_before)
+          .filter((event) => label_id === undefined || event.label_id === label_id)
+          .filter((event) => include_memos || event.category !== 2)
+          .filter(
+            (event) =>
+              keyword === undefined ||
+              [event.title, event.note, event.location].some((field) =>
+                field?.toLowerCase().includes(keyword)
+              )
+          )
+          .sort((a, b) => a.start_at - b.start_at);
 
         // Limit results if provided
         if (limit) {
@@ -162,7 +202,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
                 text: JSON.stringify(
                   {
                     error: 'Invalid input',
-                    message: 'Please provide a valid calendar_id (string)',
+                    message: 'Please provide a valid calendar_id',
                     details: (error as any).errors,
                   },
                   null,
@@ -207,10 +247,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
     inputSchema: {
       type: 'object',
       properties: {
-        calendar_id: {
-          type: 'string',
-          description: 'The calendar ID to fetch updated events from',
-        },
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
         updated_after: {
           type: 'number',
           description:
@@ -227,7 +264,8 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
     handler: async (args: unknown) => {
       try {
         const input = GetUpdatedEventsInputSchema.parse(args);
-        const { calendar_id, updated_after, limit } = input;
+        const { updated_after, limit } = input;
+        const calendar_id = String(input.calendar_id);
 
         logger.info('Tool: get_updated_events called', { calendar_id, updated_after, limit });
 
@@ -320,7 +358,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
                 text: JSON.stringify(
                   {
                     error: 'Invalid input',
-                    message: 'Please provide valid calendar_id (string) and updated_after (number) parameters',
+                    message: 'Please provide valid calendar_id and updated_after (number) parameters',
                     details: (error as any).errors,
                   },
                   null,

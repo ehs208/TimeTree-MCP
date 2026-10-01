@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Added `get_holidays` for public holidays and memorial days by country and date range.
+- Added `start_before`, `query`, `label_id`, and `include_memos` filters to `get_events`.
+
+### Changed
+- `get_events` now returns events sorted by start time, so `limit` keeps the earliest matches.
+- Every tool now accepts `calendar_id` as a string or a number, matching the string IDs returned by `list_calendars`.
+
+### Fixed
+- Event and memo URLs are now saved. TimeTree stores them in the attachment, so the top-level `url` was previously ignored.
+- Clearing a checklist with `checklist: []` no longer fails with HTTP 400.
+- Updating only the URL or only the checklist no longer drops the other attachment field.
+
 ## [0.3.0] - 2026-05-25
 
 ### Added

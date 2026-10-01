@@ -20,6 +20,7 @@ Use Claude, Codex, Cursor, Windsurf, and other MCP clients to read and manage yo
 - 🗒️ **Manage Memos** - List, create, update, and delete TimeTree memos
 - 💬 **Manage Comments** - Add, list, update, and delete event comments
 - 🏷️ **Calendar Metadata** - Read/update labels and inspect members/virtual members
+- 🎌 **Holidays** - Look up public holidays by country and date range
 - 🔐 **Secure Authentication** - Email/password authentication (stored only in MCP config)
 - ⚡ **Rate Limiting** - Token bucket algorithm to prevent API overload
 - 🔄 **Auto Pagination** - Automatically fetches all events across multiple pages
@@ -122,7 +123,7 @@ Then restart your MCP client.
 ### MCP Tools
 
 - **list_calendars** - List all calendars with participating users
-- **get_events** - Get events from a calendar with auto-pagination
+- **get_events** - Get events from a calendar with auto-pagination, sorted by start time, with keyword/label/date filters
 - **get_updated_events** - Get events updated after a specific timestamp (efficient incremental sync)
 - **create_event** - Create a new event in a calendar (supports alerts, recurrences, attendees, checklist)
 - **update_event** - Update an existing event
@@ -131,6 +132,7 @@ Then restart your MCP client.
 - **add_event_comment / list_event_comments / update_event_comment / delete_event_comment** - Manage event comments
 - **get_calendar_labels / update_calendar_labels** - Read or merge-update calendar labels
 - **get_calendar_members / get_calendar_virtual_members** - Read calendar member metadata
+- **get_holidays** - Get public holidays and memorial days for a date range
 
 📖 See [COMMANDS.md](COMMANDS.md) for parameters and usage details.
 
