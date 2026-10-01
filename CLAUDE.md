@@ -25,6 +25,7 @@ The server currently exposes tools for:
 - Listing and managing memos.
 - Reading and updating calendar labels.
 - Reading calendar members and virtual members.
+- Reading public holidays and recent calendar activity.
 
 Write operations depend on TimeTree web authentication and CSRF handling. Keep error messages clear, but do not expose internal auth material.
 

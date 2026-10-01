@@ -15,6 +15,7 @@ export const TIMETREE_CONFIG = {
     CALENDAR_LABELS: (calendarId: string) => `/calendar/${calendarId}/labels`,
     CALENDAR_MEMBERS_V2: (calendarId: string) => `/calendars/${calendarId}/users`,
     MEMORIAL_DAYS: '/memorialdays',
+    LATEST_EVENT_ACTIVITIES: '/event_activities/latest',
     CALENDAR_VIRTUAL_USERS: (calendarId: string) => `/calendars/${calendarId}/virtual_users`,
     EVENTS_SYNC: (calendarId: string) => `/calendar/${calendarId}/events/sync`,
     EVENTS: (calendarId: string) => `/calendar/${calendarId}/events`,

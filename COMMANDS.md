@@ -25,6 +25,7 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 | **get_calendar_members** | Get calendar members |
 | **get_calendar_virtual_members** | Get virtual members |
 | **get_holidays** | Get public holidays and memorial days for a date range |
+| **get_recent_activity** | See who recently created, changed, or deleted events and memos |
 
 ## Tool Details
 
@@ -45,7 +46,9 @@ Returns all active calendars with IDs, names, and participant info.
 ### get_events
 
 Fetches all events from a calendar, sorted by start time, with optional client-side filtering.
-Results include memos (`category=2`) unless `include_memos` is `false`. Recurring events are returned once with their RRULE; occurrences are not expanded.
+Results include memos (`category=2`) unless `include_memos` is `false`.
+
+When `start_before` is set, recurring events are expanded into each occurrence in the range, so "next week" queries include weekly meetings. Occurrences share the series `uuid` and are marked `is_recurring_occurrence: true`; updating or deleting that `uuid` changes the whole series. Supported rules: daily, weekly, monthly, and yearly with interval, count, until, weekdays (including "last Friday"), month days, and months. Other rules are returned once, unexpanded.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
@@ -55,6 +58,7 @@ Results include memos (`category=2`) unless `include_memos` is `false`. Recurrin
 | `query` | No | Case-insensitive keyword matched against title, note, and location |
 | `label_id` | No | Only return events with this label (1-10) |
 | `include_memos` | No | Include memos (default: true) |
+| `expand_recurring` | No | Expand recurring events when `start_before` is set (default: true) |
 | `limit` | No | Maximum number of events to return |
 
 **Example prompts:**
@@ -215,6 +219,24 @@ Returns public holidays and memorial days that TimeTree shows on calendars. Read
 **Example prompts:**
 - "Which Korean public holidays are in October?"
 - "Schedule the team offsite on a weekday that isn't a holiday in Korea or Japan"
+
+---
+
+### get_recent_activity
+
+Lists recently changed events and memos, newest first, with who did what. TimeTree keeps only the last few activities per event. Read-only.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `calendar_id` | Yes | Calendar ID |
+| `since` | No | Unix timestamp (ms) — only return activity after this time |
+| `limit` | No | Maximum number of events to return (1-100, default 20) |
+
+Each activity lists `actions` such as `created`, `title_updated`, `date_updated`, `label_updated`, `note_updated`, `location_updated`, `reminder_updated`, `url_updated`, `checklist_updated`, or `deleted`, plus the member who made the change.
+
+**Example prompts:**
+- "What changed in our family calendar this week?"
+- "Who moved the dentist appointment?"
 
 ---
 

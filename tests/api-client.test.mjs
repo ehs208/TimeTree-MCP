@@ -252,3 +252,20 @@ test('getMemorialDays queries v2 memorial days and drops deactivated entries', a
   assert.equal(url.searchParams.get('from'), '2026-10-01T00:00:00.000Z');
   assert.deepEqual(days.map((day) => day.title), ['active']);
 });
+
+test('getLatestEventActivities queries the latest activity feed for calendars', async () => {
+  let requested;
+  const client = makeClient({
+    get: async (url) => {
+      requested = url;
+      return { events: [{ id: 'evt', calendar_id: 123, title: 't', activities: [{ status: [1], user_id: 1, updated_at: 5 }] }] };
+    },
+  });
+
+  const events = await client.getLatestEventActivities(['123']);
+
+  const url = new URL(requested);
+  assert.equal(url.pathname, '/api/v1/event_activities/latest');
+  assert.deepEqual(url.searchParams.getAll('calendar_ids[]'), ['123']);
+  assert.deepEqual(events[0].activities[0].status, [1]);
+});

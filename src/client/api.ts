@@ -26,6 +26,8 @@ import type {
   EventActivity,
   EventActivityResponse,
   EventsSyncResponse,
+  LatestActivitiesResponse,
+  LatestActivityEvent,
   MemorialDay,
   MemorialDaysResponse,
   UpdateEventInput,
@@ -41,6 +43,7 @@ import {
   EventActivitiesResponseSchema,
   EventActivityResponseSchema,
   EventsSyncResponseSchema,
+  LatestActivitiesResponseSchema,
   MemorialDaysResponseSchema,
   UpdateEventResponseSchema,
 } from '../types/timetree.js';
@@ -311,6 +314,34 @@ export class TimeTreeAPIClient {
       logger.error('Failed to fetch calendar labels', { calendarId, error });
       throw new TimeTreeAPIError(
         `Failed to fetch calendar labels: ${getErrorMessage(error)}`
+      );
+    }
+  }
+
+  /**
+   * Get recently changed events with their latest activities (newest first).
+   * TimeTree returns at most a few recent activities per event, including deleted events.
+   */
+  async getLatestEventActivities(calendarIds: string[]): Promise<LatestActivityEvent[]> {
+    await this.ensureAuthenticated();
+
+    const params = new URLSearchParams();
+    for (const calendarId of calendarIds) params.append('calendar_ids[]', calendarId);
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.LATEST_EVENT_ACTIVITIES}?${params}`;
+
+    try {
+      const response = await this.rateLimiter.executeWithRetry(async () => {
+        return await this.authManager.getHttpClient().get<LatestActivitiesResponse>(url);
+      });
+      return LatestActivitiesResponseSchema.parse(response).events;
+    } catch (error) {
+      if (getStatusCode(error) === 404) {
+        throw new InvalidCalendarError(calendarIds.join(','));
+      }
+      logger.error('Failed to fetch latest event activities', { calendarIds, error });
+      throw new TimeTreeAPIError(
+        `Failed to fetch recent activity: ${getErrorMessage(error)}`,
+        getStatusCode(error)
       );
     }
   }

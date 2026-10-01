@@ -170,6 +170,33 @@ export const MemorialDaysResponseSchema = z.object({
 }).passthrough();
 
 export type MemorialDay = z.infer<typeof MemorialDaySchema>;
+
+export const LatestActivitySchema = z.object({
+  activity_id: z.string().optional(),
+  status: z.array(z.number()).default([]),
+  user_id: z.number().nullable().optional(),
+  updated_at: z.number(),
+}).passthrough();
+
+export const LatestActivityEventSchema = z.object({
+  id: z.string(),
+  calendar_id: z.number(),
+  title: z.string().default(''),
+  category: z.number().optional(),
+  all_day: z.boolean().optional(),
+  start_at: z.number().optional(),
+  end_at: z.number().optional(),
+  deactivated_at: z.number().nullable().optional(),
+  latest_activities_updated_at: z.number().optional(),
+  activities: z.array(LatestActivitySchema).default([]),
+}).passthrough();
+
+export const LatestActivitiesResponseSchema = z.object({
+  events: z.array(LatestActivityEventSchema),
+}).passthrough();
+
+export type LatestActivityEvent = z.infer<typeof LatestActivityEventSchema>;
+export type LatestActivitiesResponse = z.infer<typeof LatestActivitiesResponseSchema>;
 export type MemorialDaysResponse = z.infer<typeof MemorialDaysResponseSchema>;
 
 export const CalendarUsersResponseSchema = z.object({

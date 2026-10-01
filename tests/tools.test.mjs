@@ -5,6 +5,7 @@ import { createCreateEventTool, createUpdateEventTool } from '../.test-dist/tool
 import { createCreateMemoTool } from '../.test-dist/tools/memo-tools.js';
 import { createGetEventsTool } from '../.test-dist/tools/event-tools.js';
 import { createGetHolidaysTool } from '../.test-dist/tools/holiday-tools.js';
+import { createGetRecentActivityTool } from '../.test-dist/tools/activity-tools.js';
 import { createGetCalendarLabelsTool } from '../.test-dist/tools/calendar-metadata-tools.js';
 
 function makeEvent(overrides = {}) {
@@ -49,6 +50,7 @@ test('registerTools exposes baseline plus Wave 1 tools', () => {
     'get_calendar_virtual_members',
     'get_events',
     'get_holidays',
+    'get_recent_activity',
     'get_updated_events',
     'list_calendars',
     'list_event_comments',
@@ -243,4 +245,84 @@ test('get_holidays returns sorted days and can exclude working-day observances',
   ]);
   const tooLong = await tool.handler({ country_iso: ['KR'], start_date: '2026-01-01', end_date: '2029-01-01' });
   assert.equal(tooLong.isError, true);
+});
+
+test('get_events expands recurring events within start_before and skips EXDATEs', async () => {
+  const series = makeEvent({
+    uuid: 'series',
+    title: 'Standup',
+    start_at: Date.parse('2026-10-13T01:00:00Z'),
+    end_at: Date.parse('2026-10-13T01:30:00Z'),
+    start_timezone: 'Asia/Seoul',
+    recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=TU,TH;COUNT=4', 'EXDATE:20261015T010000Z'],
+  });
+  const exception = makeEvent({
+    uuid: 'exception',
+    title: 'Standup (moved)',
+    start_at: Date.parse('2026-10-15T02:00:00Z'),
+    end_at: Date.parse('2026-10-15T02:30:00Z'),
+    parent_id: 'series',
+  });
+  const tool = createGetEventsTool({ getEventsByCalendar: async () => [series, exception] });
+
+  const ranged = parseToolText(await tool.handler({
+    calendar_id: '123',
+    start_after: Date.parse('2026-10-14T00:00:00Z'),
+    start_before: Date.parse('2026-10-23T00:00:00Z'),
+  }));
+  assert.deepEqual(ranged.events.map((event) => [event.uuid, event.start_at, event.end_at, event.is_recurring_occurrence ?? false]), [
+    ['exception', '2026-10-15T02:00:00.000Z', '2026-10-15T02:30:00.000Z', false],
+    ['series', '2026-10-20T01:00:00.000Z', '2026-10-20T01:30:00.000Z', true],
+    ['series', '2026-10-22T01:00:00.000Z', '2026-10-22T01:30:00.000Z', true],
+  ]);
+  assert.equal(ranged.events[1].series_start_at, '2026-10-13T01:00:00.000Z');
+
+  const unbounded = parseToolText(await tool.handler({ calendar_id: '123' }));
+  assert.deepEqual(unbounded.events.map((event) => event.uuid), ['series', 'exception']);
+
+  const optedOut = parseToolText(await tool.handler({
+    calendar_id: '123',
+    start_before: Date.parse('2026-10-23T00:00:00Z'),
+    expand_recurring: false,
+  }));
+  assert.deepEqual(optedOut.events.map((event) => event.uuid), ['series', 'exception']);
+});
+
+test('get_recent_activity names status codes, joins member names, and filters by since', async () => {
+  const tool = createGetRecentActivityTool({
+    getLatestEventActivities: async (calendarIds) => {
+      assert.deepEqual(calendarIds, ['123']);
+      return [
+        {
+          id: 'evt-1', calendar_id: 123, title: 'Dentist', category: 1, all_day: false,
+          start_at: Date.parse('2026-10-02T01:00:00Z'), deactivated_at: null,
+          activities: [
+            { status: [1], user_id: 7, updated_at: 1000 },
+            { status: [2, 3], user_id: 7, updated_at: 3000 },
+            { status: [99], user_id: 8, updated_at: 4000 },
+          ],
+        },
+        {
+          id: 'memo-1', calendar_id: 123, title: 'Old memo', category: 2, deactivated_at: 2500,
+          activities: [{ status: [15], user_id: 8, updated_at: 1500 }],
+        },
+      ];
+    },
+    getCalendarMembers: async () => [{ id: 1, user_id: 7, name: 'Alex' }],
+  });
+
+  const result = parseToolText(await tool.handler({ calendar_id: 123, since: 2000 }));
+
+  assert.equal(result.total, 1);
+  assert.equal(result.events[0].kind, 'event');
+  assert.deepEqual(result.events[0].activities.map((activity) => [activity.actions, activity.user_name]), [
+    [['other_99'], null],
+    [['title_updated', 'date_updated'], 'Alex'],
+  ]);
+
+  const all = parseToolText(await tool.handler({ calendar_id: '123' }));
+  assert.deepEqual(all.events.map((event) => [event.uuid, event.kind, event.deleted]), [
+    ['evt-1', 'event', false],
+    ['memo-1', 'memo', true],
+  ]);
 });

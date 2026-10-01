@@ -21,6 +21,7 @@ Claude, Codex, Cursor, Windsurf 같은 MCP 클라이언트에서 TimeTree 캘린
 - 💬 **댓글 관리** - 이벤트 댓글 추가, 조회, 수정, 삭제
 - 🏷️ **캘린더 메타데이터** - 라벨 조회/수정 및 멤버/가상 멤버 조회
 - 🎌 **공휴일 조회** - 국가와 기간으로 공휴일 조회
+- 🕘 **최근 활동** - 누가 일정과 메모를 만들고, 바꾸고, 지웠는지 확인
 - 🔐 **안전한 인증** - 이메일/비밀번호 인증 (MCP 설정에만 저장)
 - ⚡ **속도 제한** - Token Bucket 알고리즘으로 API 과부하 방지
 - 🔄 **자동 페이지네이션** - 여러 페이지에 걸친 모든 이벤트 자동 조회
@@ -123,7 +124,7 @@ npm run build
 ### MCP 도구
 
 - **list_calendars** - 참여 중인 사용자와 함께 모든 캘린더 조회
-- **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회 (시작 시간순 정렬, 키워드/라벨/기간 필터)
+- **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회 (시작 시간순 정렬, 키워드/라벨/기간 필터, 기간 내 반복 일정 펼침)
 - **get_updated_events** - 특정 시간 이후 업데이트된 이벤트 조회 (효율적인 증분 동기화)
 - **create_event** - 캘린더에 새 이벤트 생성 (알림, 반복, 참석자, 체크리스트 지원)
 - **update_event** - 기존 이벤트 수정
@@ -133,6 +134,7 @@ npm run build
 - **get_calendar_labels / update_calendar_labels** - 캘린더 라벨 조회 또는 병합 업데이트
 - **get_calendar_members / get_calendar_virtual_members** - 캘린더 멤버 메타데이터 조회
 - **get_holidays** - 기간 내 공휴일과 기념일 조회
+- **get_recent_activity** - 최근 변경된 일정과 메모, 변경한 사람 조회
 
 📖 파라미터와 사용 세부사항은 [COMMANDS.md](COMMANDS.md) 참조
 

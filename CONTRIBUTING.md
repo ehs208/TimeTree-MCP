@@ -94,7 +94,8 @@ TimeTree-MCP/
 │   ├── utils/
 │   │   ├── logger.ts             # Structured logging (stderr only)
 │   │   ├── http-client.ts        # HTTP wrapper (native fetch)
-│   │   └── rate-limiter.ts       # Token bucket rate limiter
+│   │   ├── rate-limiter.ts       # Token bucket rate limiter
+│   │   └── recurrence.ts         # RRULE/EXDATE expansion for get_events
 │   ├── client/
 │   │   ├── auth.ts               # Authentication + CSRF token manager
 │   │   └── api.ts                # TimeTree API client (read + CRUD)
@@ -107,7 +108,8 @@ TimeTree-MCP/
 │   │   ├── event-crud-tools.ts        # create_event, update_event, delete_event
 │   │   ├── memo-tools.ts              # list/create/update/delete memos
 │   │   ├── comment-tools.ts           # event comments
-│   │   └── holiday-tools.ts           # get_holidays
+│   │   ├── holiday-tools.ts           # get_holidays
+│   │   └── activity-tools.ts          # get_recent_activity
 │   └── types/
 │       ├── timetree.ts           # TypeScript/Zod schemas
 │       └── label-colors.ts       # Event color mapping (label_id 1-10)
