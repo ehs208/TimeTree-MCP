@@ -40,6 +40,7 @@ test('registerTools exposes baseline plus Wave 1 tools', () => {
 
   assert.deepEqual(names, [
     'add_event_comment',
+    'create_calendar',
     'create_event',
     'create_memo',
     'delete_event',

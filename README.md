@@ -12,6 +12,7 @@ Use Claude, Codex, Cursor, Windsurf, and other MCP clients to read and manage yo
 
 ### Features
 
+- 🗓️ **Create Calendars** - Create a calendar without inviting members
 - 📅 **List Calendars** - Get all your TimeTree calendars
 - 📆 **Get Events** - Retrieve events from any calendar with automatic pagination
 - ➕ **Create Events** - Add new events to your calendars
@@ -123,6 +124,7 @@ Then restart your MCP client.
 
 ### MCP Tools
 
+- **create_calendar** - Create a calendar with a name (1–20 characters) and purpose; no invitations
 - **list_calendars** - List all calendars with participating users
 - **get_events** - Get events from a calendar with auto-pagination, sorted by start time, with keyword/label/date filters and recurring occurrences expanded
 - **get_updated_events** - Get events updated after a specific timestamp (efficient incremental sync)

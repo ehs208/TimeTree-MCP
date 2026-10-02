@@ -18,7 +18,7 @@ Important context:
 
 The server currently exposes tools for:
 
-- Listing calendars.
+- Listing and creating calendars (creation does not invite members).
 - Reading calendar events and updated events.
 - Creating, updating, and deleting events.
 - Managing event comments.

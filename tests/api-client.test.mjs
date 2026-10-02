@@ -28,6 +28,7 @@ function makeClient(http) {
       throw new Error('authenticate should not be called in unit tests');
     },
     getHttpClient: () => http,
+    getCsrfToken: () => "test-token",
   });
 }
 
@@ -165,6 +166,21 @@ test('event comment methods use activity endpoints and filter comment activities
   assert.ok(calls.every((call) => call.method === 'GET' || call.requiresCsrf === true));
   assert.ok(calls.some((call) => call.url === 'https://timetreeapp.com/api/v1/calendar/123/event/evt/activities'));
   assert.ok(calls.some((call) => call.url === 'https://timetreeapp.com/api/v1/calendar/123/event/evt/activity/comment'));
+});
+
+test('createCalendar uses v2 CSRF-protected creation without invitations or retries', async () => {
+  const calls = [];
+  const client = makeClient({post: async (...args) => {
+    calls.push(args);
+    return { calendar: {id: 456, name: 'Private', alias_code: 'new-alias'} };
+  }});
+  assert.equal((await client.createCalendar(' Private ', 'lover')).id, 456);
+  assert.deepEqual(calls, [['https://timetreeapp.com/api/v2/calendars',
+    {name: 'Private', purpose: 'lover'}, undefined, true]]);
+  let count = 0;
+  const failing = makeClient({post: async () => {count++; throw new Error('timeout');}});
+  await assert.rejects(failing.createCalendar('Private'));
+  assert.equal(count, 1);
 });
 
 test('createEvent stores url in attachment and sends an empty checklist as null', async () => {

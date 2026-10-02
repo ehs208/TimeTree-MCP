@@ -4,7 +4,7 @@
  */
 
 import type { TimeTreeAPIClient } from '../client/api.js';
-import { createListCalendarsTool } from './calendar-tools.js';
+import { createCreateCalendarTool, createListCalendarsTool } from './calendar-tools.js';
 import {
   createGetCalendarLabelsTool,
   createGetCalendarMembersTool,
@@ -35,6 +35,7 @@ import {
 export function registerTools(apiClient: TimeTreeAPIClient) {
   return [
     createListCalendarsTool(apiClient),
+    createCreateCalendarTool(apiClient),
     createGetEventsTool(apiClient),
     createGetUpdatedEventsTool(apiClient),
     createCreateEventTool(apiClient),

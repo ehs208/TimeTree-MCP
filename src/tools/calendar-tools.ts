@@ -80,3 +80,40 @@ export function createListCalendarsTool(apiClient: TimeTreeAPIClient) {
     },
   };
 }
+
+export const CreateCalendarInputSchema = z.object({
+  name: z.string().trim().min(1).max(20),
+  purpose: z.enum(['family', 'private', 'lover', 'work', 'friend', 'work_schedule',
+    'lesson', 'school_event', 'circle', 'hobby', 'other']).default('lover'),
+}).strict();
+
+export function createCreateCalendarTool(apiClient: TimeTreeAPIClient) {
+  return {
+    name: 'create_calendar',
+    description: 'Create a calendar owned by the authenticated user. Does not invite members or change existing calendars. Creation is not automatically retried.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', minLength: 1, maxLength: 20 },
+        purpose: { type: 'string', enum: ['family', 'private', 'lover', 'work', 'friend',
+          'work_schedule', 'lesson', 'school_event', 'circle', 'hobby', 'other'], default: 'lover' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    handler: async (args: unknown) => {
+      try {
+        const input = CreateCalendarInputSchema.parse(args);
+        const calendar = await apiClient.createCalendar(input.name, input.purpose);
+        return { content: [{ type: 'text', text: JSON.stringify({
+          id: String(calendar.id), name: calendar.name, alias_code: calendar.alias_code ?? null,
+        }) }] };
+      } catch {
+        // Avoid forwarding response bodies or submitted private data to MCP logs.
+        return { content: [{ type: 'text', text: JSON.stringify({
+          error: 'Calendar creation failed. Check existing calendars before retrying.',
+        }) }], isError: true };
+      }
+    },
+  };
+}

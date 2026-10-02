@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `create_calendar` using the web API v2 calendar creation endpoint and existing CSRF authentication, without member invitations or automatic creation retries.
 - Added `get_holidays` for public holidays and memorial days by country and date range.
 - Added `start_before`, `query`, `label_id`, and `include_memos` filters to `get_events`.
 - `get_events` expands recurring events into their occurrences when `start_before` is set (`expand_recurring`, default on). EXDATE exceptions are honored.

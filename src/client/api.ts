@@ -36,6 +36,7 @@ import type {
 } from '../types/timetree.js';
 import {
   CalendarLabelsResponseSchema,
+  CalendarSchema,
   CalendarUsersResponseSchema,
   CalendarVirtualUsersResponseSchema,
   CalendarsResponseSchema,
@@ -170,6 +171,23 @@ export class TimeTreeAPIClient {
         `Failed to fetch calendars: ${getErrorMessage(error)}`
       );
     }
+  }
+
+  /** Create a calendar owned by the authenticated user, without invitations.
+   * Uses the current web application's POST /api/v2/calendars contract.
+   * Never automatically retries a non-idempotent creation request.
+   */
+  async createCalendar(name: string, purpose: string = 'lover'): Promise<Calendar> {
+    if (!name.trim() || name.trim().length > 20) {
+      throw new TimeTreeAPIError('Calendar name must contain 1 to 20 characters', 400);
+    }
+    await this.ensureAuthenticated();
+    this.authManager.getCsrfToken();
+    const response = await this.authManager.getHttpClient().post<{ calendar: unknown }>(
+      `${TIMETREE_CONFIG.V2_BASE_URL}/calendars`,
+      { name: name.trim(), purpose }, undefined, true
+    );
+    return CalendarSchema.parse(response.calendar);
   }
 
   /** Recursively sync events from a calendar with automatic pagination. */
