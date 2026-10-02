@@ -182,8 +182,9 @@ function offsetAt(instant: number, formatter: Intl.DateTimeFormat): number {
  */
 function fromLocal(date: LocalDate, time: LocalTime, formatter: Intl.DateTimeFormat): number {
   const wallAsUtc = Date.UTC(date.year, date.month - 1, date.day, time.hour, time.minute, time.second);
-  const offsetBefore = offsetAt(wallAsUtc - DAY_MS / 2, formatter);
-  const offsetAfter = offsetAt(wallAsUtc + DAY_MS / 2, formatter);
+  // Sample two days away so the bracket spans the transition even for zones near UTC±14.
+  const offsetBefore = offsetAt(wallAsUtc - 2 * DAY_MS, formatter);
+  const offsetAfter = offsetAt(wallAsUtc + 2 * DAY_MS, formatter);
 
   const matches = [offsetBefore, offsetAfter]
     .map((offset) => wallAsUtc - offset)
@@ -349,8 +350,9 @@ export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOp
       }
     }
 
-    if (passedEnd) break;
+    if (passedEnd) return { occurrences, truncated: false };
   }
 
-  return { occurrences, truncated: false };
+  // The period safety limit ran out before the window ended.
+  return { occurrences, truncated: true };
 }

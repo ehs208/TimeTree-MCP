@@ -144,6 +144,11 @@ test('DST gaps shift forward and ambiguous times use the first occurrence', () =
     expand(['RRULE:FREQ=WEEKLY;COUNT=3'], '2026-03-01T07:30:00Z', 'America/New_York', '2026-02-01T00:00:00Z', '2026-04-01T00:00:00Z'),
     ['2026-03-01T07:30:00.000Z', '2026-03-08T07:30:00.000Z', '2026-03-15T06:30:00.000Z']
   );
+  // Auckland (UTC+12 -> +13 on 2026-09-27): 02:30 does not exist and becomes 03:30 NZDT.
+  assert.deepEqual(
+    expand(['RRULE:FREQ=WEEKLY;COUNT=2'], '2026-09-19T14:30:00Z', 'Pacific/Auckland', '2026-09-01T00:00:00Z', '2026-10-15T00:00:00Z'),
+    ['2026-09-19T14:30:00.000Z', '2026-09-26T14:30:00.000Z']
+  );
   // 01:30 happens twice in New York on 2026-11-01; use the first (EDT).
   assert.deepEqual(
     expand(['RRULE:FREQ=WEEKLY;COUNT=2'], '2026-10-25T05:30:00Z', 'America/New_York', '2026-10-01T00:00:00Z', '2026-12-01T00:00:00Z'),
