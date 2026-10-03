@@ -69,7 +69,7 @@ Why not npm: the server handles a TimeTree password through undocumented endpoin
 Extension rules:
 
 - The bundle has no `node_modules`. Every runtime dependency is inlined by `scripts/build-mcpb.mjs`, so a new dependency must work when bundled. After dependency or startup changes, run `npm run build:mcpb` and smoke-test the bundle (initialize plus `tools/list` over stdio).
-- The bundle runs on the Node.js that ships with Claude Desktop, whose version we do not control. The bundle targets Node 20 syntax and the manifest sets no runtime constraint. Do not rely on APIs newer than Node 20 in code paths the server needs at startup unless the shipped version has been confirmed.
+- The bundle runs on the Node.js that ships with Claude Desktop, not the user's Node. Claude Desktop 2.9939 (Electron 44) ships Node 24. The bundle targets Node 22 and the manifest requires `node >=22.0.0`, matching `engines` in `package.json`.
 - The manifest sets `TIMETREE_INSTALL_SOURCE=mcpb`. `formatUpdateNotice` uses it to send extension users to the latest release instead of `git pull`.
 - `mcpb/manifest.json` `tools` must list exactly the tools from `registerTools`, and its `version` must match `package.json`. Tests check both.
 - Extension metadata must not use TimeTree's logo or brand assets, and `display_name` keeps "(Unofficial)".

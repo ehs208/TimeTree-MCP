@@ -55,7 +55,10 @@
   "keywords": ["timetree", "calendar", "schedule", "events", "memo"],
   "license": "MIT",
   "compatibility": {
-    "platforms": ["darwin", "win32"]
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=22.0.0"
+    }
   },
   "user_config": {
     "email": {
