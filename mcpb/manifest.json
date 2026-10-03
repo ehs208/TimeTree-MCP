@@ -54,6 +54,10 @@
   ],
   "keywords": ["timetree", "calendar", "schedule", "events", "memo"],
   "license": "MIT",
+  "privacy_policies": [
+    "https://timetreeapp.com/intl/en/terms/privacy",
+    "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+  ],
   "compatibility": {
     "platforms": ["darwin", "win32"],
     "runtimes": {

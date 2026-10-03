@@ -3,14 +3,11 @@
 // The bundle is a zip that Claude Desktop installs with one click. It must run without
 // `npm install`, so the server and its dependencies are bundled into a single file.
 // Output: build/timetree-mcp-<version>.mcpb
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'tsup';
-
-// Pinned so a release does not change because the packer did.
-const MCPB_CLI = '@anthropic-ai/mcpb@2.1.2';
 
 // fileURLToPath decodes spaces and non-ASCII characters and handles Windows drive letters.
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -48,9 +45,20 @@ cpSync(join(root, 'mcpb', 'manifest.json'), join(stage, 'manifest.json'));
 cpSync(join(root, 'mcpb', 'icon.png'), join(stage, 'icon.png'));
 cpSync(join(root, 'LICENSE'), join(stage, 'LICENSE'));
 
+// The packer and its dependencies are locked in scripts/mcpb-packer, apart from the
+// main package, so a release cannot pick up a different transitive version.
+const packerDir = join(root, 'scripts', 'mcpb-packer');
+const packerPkgDir = join(packerDir, 'node_modules', '@anthropic-ai', 'mcpb');
+if (!existsSync(packerPkgDir)) {
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npm, ['ci', '--no-audit', '--no-fund'], { cwd: packerDir, stdio: 'inherit', shell: process.platform === 'win32' });
+}
+const { bin } = JSON.parse(readFileSync(join(packerPkgDir, 'package.json'), 'utf8'));
+const packerBin = typeof bin === 'string' ? bin : bin.mcpb;
+const mcpb = (...args) => execFileSync(process.execPath, [join(packerPkgDir, packerBin), ...args], { stdio: 'inherit' });
+
 const output = join(root, 'build', `timetree-mcp-${pkg.version}.mcpb`);
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-execFileSync(npx, ['--yes', MCPB_CLI, 'validate', join(stage, 'manifest.json')], { stdio: 'inherit' });
-execFileSync(npx, ['--yes', MCPB_CLI, 'pack', stage, output], { stdio: 'inherit' });
+mcpb('validate', join(stage, 'manifest.json'));
+mcpb('pack', stage, output);
 
 console.log(`\nBuilt ${output}`);

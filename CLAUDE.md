@@ -44,6 +44,7 @@ Write operations depend on TimeTree web authentication and CSRF handling. Keep e
 - `src/utils/update-check.ts` - Startup version check against `main` and the install-specific update notice.
 - `mcpb/manifest.json`, `mcpb/icon.png` - Claude Desktop extension manifest and icon.
 - `scripts/build-mcpb.mjs` - Bundles the server and all dependencies into one file and packs `build/timetree-mcp-<version>.mcpb`.
+- `scripts/mcpb-packer/` - The MCPB packer locked with its own `package-lock.json`, installed only when building the extension. It is kept out of the main `package.json` so its dev-only advisories do not fail the server's `npm audit`. Update it on purpose, not through the main lockfile.
 - `.github/workflows/release.yml` - On a `v*` tag, tests, builds the `.mcpb`, and creates the GitHub release.
 - `docs/assets/` - Icon, README demo image, and GitHub social preview (SVG sources plus rendered PNGs).
 
@@ -72,6 +73,7 @@ Extension rules:
 - The bundle runs on the Node.js that ships with Claude Desktop, not the user's Node. Claude Desktop 2.9939 (Electron 44) ships Node 24. The bundle targets Node 22 and the manifest requires `node >=22.0.0`, matching `engines` in `package.json`.
 - The manifest sets `TIMETREE_INSTALL_SOURCE=mcpb`. `formatUpdateNotice` uses it to send extension users to the latest release instead of `git pull`.
 - `mcpb/manifest.json` `tools` must list exactly the tools from `registerTools`, and its `version` must match `package.json`. Tests check both.
+- `privacy_policies` lists every external service the extension sends data to (TimeTree for sign-in and calendar data, GitHub for the update check). Add an entry when a new service is contacted.
 - Extension metadata must not use TimeTree's logo or brand assets, and `display_name` keeps "(Unofficial)".
 
 ## Security and Privacy Rules

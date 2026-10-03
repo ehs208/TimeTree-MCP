@@ -1,0 +1,8 @@
+{
+  "name": "timetree-mcp-packer",
+  "private": true,
+  "description": "Locked copy of the MCPB packer used by scripts/build-mcpb.mjs. Kept apart from the main package so its dev-only advisories do not affect the server's dependency audit.",
+  "dependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  }
+}
