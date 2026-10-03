@@ -8,7 +8,7 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 |------|-------------|
 | **list_calendars** | List all active calendars with participating users |
 | **get_events** | Get events from a calendar (with date filtering) |
-| **get_updated_events** | Get recently modified events (efficient sync) |
+| **get_updated_events** | Get recently modified or deleted events |
 | **create_event** | Create a new event |
 | **update_event** | Update an existing event |
 | **delete_event** | Delete an event |
@@ -71,7 +71,7 @@ When `start_before` is set, recurring events are expanded into each occurrence i
 
 ### get_updated_events
 
-Fetches only events modified after a timestamp. More efficient than `get_events` for checking recent changes.
+Returns only events modified after a timestamp, which suits "what changed?" questions better than `get_events`. The whole event feed is read and filtered by `updated_at`, since TimeTree's `since` parameter is a sync cursor rather than a date.
 Deleted events are included with `deleted: true` and `deleted_at`, so a deletion is not mistaken for an edit.
 
 | Parameter | Required | Description |

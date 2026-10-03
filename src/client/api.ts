@@ -194,9 +194,12 @@ export class TimeTreeAPIClient {
     }
   }
 
-  /** Sign in, sharing one in-flight login between concurrent callers. */
+  /**
+   * Sign in through the rate limiter (sign-in also calls TimeTree), sharing one in-flight
+   * login between concurrent callers.
+   */
   private authenticate(): Promise<void> {
-    this.pendingAuth ??= this.authManager.authenticate().finally(() => {
+    this.pendingAuth ??= this.rateLimiter.executeWithRetry(() => this.authManager.authenticate()).finally(() => {
       this.pendingAuth = undefined;
     });
     return this.pendingAuth;
@@ -326,8 +329,7 @@ export class TimeTreeAPIClient {
   }
 
   /**
-   * Get events updated after a specific timestamp.
-   * This is more efficient than getEventsByCalendar when checking for recent changes.
+   * Get events updated after a specific timestamp, including deleted events.
    */
   async getUpdatedEvents(
     calendarId: string,
@@ -338,13 +340,12 @@ export class TimeTreeAPIClient {
     logger.info('Fetching updated events for calendar', { calendarId, updatedAfter });
 
     try {
-      // The events feed includes deleted events (with deactivated_at). Its `since` cursor
-      // has been observed to be a millisecond timestamp, so starting from updatedAfter only
-      // skips older pages; the updated_at filter below decides what is returned.
+      // The events feed includes deleted events (with deactivated_at). `since` is a sync
+      // cursor, not a date, so read the whole feed and filter by updated_at here.
       const events = await this.fetchEventPages(
         (cursor) =>
           `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENTS(calendarId)}?since=${cursor}`,
-        updatedAfter
+        0
       );
 
       const updatedEvents = events.filter(

@@ -296,13 +296,17 @@ for (const [label, failure] of [
   });
 }
 
-test('getUpdatedEvents follows chunked pages', async () => {
+test('getUpdatedEvents reads the feed from cursor 0, follows chunks, and filters by updated_at', async () => {
   const urls = [];
   const client = makeClient({
     get: async (url) => {
       urls.push(url);
-      if (url.endsWith('since=100')) {
-        return { chunk: true, since: 200, events: [makeEvent({ uuid: 'a', updated_at: 150 })] };
+      if (url.endsWith('since=0')) {
+        return {
+          chunk: true,
+          since: 200,
+          events: [makeEvent({ uuid: 'old', updated_at: 50 }), makeEvent({ uuid: 'a', updated_at: 150 })],
+        };
       }
       return { chunk: false, since: 300, events: [makeEvent({ uuid: 'b', updated_at: 250 })] };
     },
@@ -310,6 +314,8 @@ test('getUpdatedEvents follows chunked pages', async () => {
 
   const events = await client.getUpdatedEvents('123', 100);
   assert.deepEqual(events.map((event) => event.uuid), ['a', 'b']);
+  // `since` is a sync cursor, not a date: start from 0 and filter by updated_at.
+  assert.ok(urls[0].endsWith('/calendar/123/events?since=0'));
   assert.ok(urls[1].endsWith('/calendar/123/events?since=200'));
 });
 
@@ -319,4 +325,20 @@ test('event output reads the URL TimeTree stores in the attachment', async () =>
   });
   const [event] = JSON.parse((await tool.handler({ calendar_id: '123' })).content[0].text).events;
   assert.equal(event.url, 'https://example.com/doc');
+});
+
+test('sign-in goes through the rate limiter', async () => {
+  let limited = 0;
+  const client = makeClient(
+    { get: async () => ({ calendars: [], chunk: false, since: 0 }) },
+    { isAuthenticated: () => false, authenticate: async () => {} }
+  );
+  const original = client.rateLimiter.executeWithRetry.bind(client.rateLimiter);
+  client.rateLimiter.executeWithRetry = (fn) => {
+    limited += 1;
+    return original(fn);
+  };
+
+  await client.getCalendars();
+  assert.equal(limited, 2, 'expected one limited call for sign-in and one for the request');
 });

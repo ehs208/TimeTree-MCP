@@ -127,7 +127,7 @@ npm run build
 
 - **list_calendars** - 참여 중인 사용자와 함께 모든 캘린더 조회
 - **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회 (시작 시간순 정렬, 키워드/라벨/기간 필터, 기간 내 반복 일정 펼침)
-- **get_updated_events** - 특정 시간 이후 업데이트된 이벤트 조회 (효율적인 증분 동기화)
+- **get_updated_events** - 특정 시간 이후 업데이트된 이벤트 조회 (삭제된 이벤트는 `deleted: true`로 표시해 함께 반환)
 - **create_event** - 캘린더에 새 이벤트 생성 (알림, 반복, 참석자, 체크리스트 지원)
 - **update_event** - 기존 이벤트 수정
 - **delete_event** - 캘린더에서 이벤트 삭제

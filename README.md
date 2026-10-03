@@ -127,7 +127,7 @@ When a newer version is on `main`, the server adds a one-time notice to a tool r
 
 - **list_calendars** - List all calendars with participating users
 - **get_events** - Get events from a calendar with auto-pagination, sorted by start time, with keyword/label/date filters and recurring occurrences expanded
-- **get_updated_events** - Get events updated after a specific timestamp (efficient incremental sync)
+- **get_updated_events** - Get events updated after a specific timestamp, including deleted events marked with `deleted: true`
 - **create_event** - Create a new event in a calendar (supports alerts, recurrences, attendees, checklist)
 - **update_event** - Update an existing event
 - **delete_event** - Delete an event from a calendar
