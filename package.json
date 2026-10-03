@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "build:mcpb": "node scripts/build-mcpb.mjs",
     "typecheck": "tsc --noEmit",
     "test:build": "node -e \"require('node:fs').rmSync('.test-dist',{recursive:true,force:true})\" && tsc --outDir .test-dist --rootDir src --declaration false --declarationMap false --sourceMap false",
     "test": "npm run build && npm run test:build && node --test tests/*.test.mjs",

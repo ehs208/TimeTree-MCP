@@ -12,6 +12,7 @@ Important context:
 - The API behavior is based on observed TimeTree web app behavior and may change without notice.
 - `package.json` must keep `"private": true` unless maintainers explicitly decide to publish.
 - Do not publish this package to npm or an MCP marketplace without maintainer approval.
+- Distribution is limited to two channels: a git clone of `main`, and the Claude Desktop extension (`.mcpb`) attached to GitHub releases. See "Distribution" below.
 - Treat upstream endpoints, cookies, CSRF tokens, and session identifiers as implementation details.
 
 ## Current Capabilities
@@ -40,6 +41,11 @@ Write operations depend on TimeTree web authentication and CSRF handling. Keep e
 - `src/utils/http-client.ts` - HTTP wrapper, headers, cookies, and CSRF token handling.
 - `src/utils/logger.ts` - Structured logging and sensitive-data masking.
 - `src/utils/rate-limiter.ts` - Token-bucket request throttling.
+- `src/utils/update-check.ts` - Startup version check against `main` and the install-specific update notice.
+- `mcpb/manifest.json`, `mcpb/icon.png` - Claude Desktop extension manifest and icon.
+- `scripts/build-mcpb.mjs` - Bundles the server and all dependencies into one file and packs `build/timetree-mcp-<version>.mcpb`.
+- `.github/workflows/release.yml` - On a `v*` tag, tests, builds the `.mcpb`, and creates the GitHub release.
+- `docs/assets/` - Icon, README demo image, and GitHub social preview (SVG sources plus rendered PNGs).
 
 Prefer small changes that follow these boundaries instead of adding new layers or dependencies.
 
@@ -51,10 +57,27 @@ Prefer small changes that follow these boundaries instead of adding new layers o
 - The upstream API may return mixed types for the same field. Zod schemas should use flexible unions where observed and `.passthrough()` for unknown fields.
 - Label IDs `1` through `10` map to the color metadata in `src/types/label-colors.ts`.
 
+## Distribution
+
+The project ships as a product, without npm. Keep both install paths working.
+
+- **Git clone of `main`** (Claude Code, Codex, Cursor, and other clients). Requires Node.js 22+. Runs `dist/index.js` with credentials in the client's `env`.
+- **Claude Desktop extension (`.mcpb`)** on macOS and Windows. Built by `npm run build:mcpb` and attached to a GitHub release by the Release workflow. Claude Desktop asks for the email and password through `user_config` (the password is marked `sensitive`) and passes them as `TIMETREE_EMAIL` and `TIMETREE_PASSWORD`.
+
+Why not npm: the server handles a TimeTree password through undocumented endpoints. A registry package widens exposure and adds a supply-chain target (one compromised publish could leak every user's password), so it stays `"private": true`. Releases are built in CI from a tagged commit of this repository.
+
+Extension rules:
+
+- The bundle has no `node_modules`. Every runtime dependency is inlined by `scripts/build-mcpb.mjs`, so a new dependency must work when bundled. After dependency or startup changes, run `npm run build:mcpb` and smoke-test the bundle (initialize plus `tools/list` over stdio).
+- The bundle runs on the Node.js that ships with Claude Desktop, whose version we do not control. The bundle targets Node 20 syntax and the manifest sets no runtime constraint. Do not rely on APIs newer than Node 20 in code paths the server needs at startup unless the shipped version has been confirmed.
+- The manifest sets `TIMETREE_INSTALL_SOURCE=mcpb`. `formatUpdateNotice` uses it to send extension users to the latest release instead of `git pull`.
+- `mcpb/manifest.json` `tools` must list exactly the tools from `registerTools`, and its `version` must match `package.json`. Tests check both.
+- Extension metadata must not use TimeTree's logo or brand assets, and `display_name` keeps "(Unofficial)".
+
 ## Security and Privacy Rules
 
 - Never commit real `TIMETREE_EMAIL`, `TIMETREE_PASSWORD`, cookies, CSRF tokens, session IDs, request captures, or personal calendar content.
-- Do not create or commit `.env` files. Credentials must come from MCP client environment configuration.
+- Do not create or commit `.env` files. Credentials must come from MCP client environment configuration or the extension's `user_config`.
 - Session cookies and CSRF tokens should remain in memory only.
 - All logs must go to stderr. MCP uses stdout for JSON-RPC, so `console.log()` can break protocol output.
 - Use the shared logger so sensitive fields are masked consistently.
@@ -71,6 +94,12 @@ npm run build
 npm run verify
 ```
 
+Build the Claude Desktop extension (writes to the git-ignored `build/` folder):
+
+```bash
+npm run build:mcpb
+```
+
 For manual MCP inspection:
 
 ```bash
@@ -84,6 +113,9 @@ When testing manually with a real account, keep credentials only in the shell or
 
 - Keep `README.md`, `README.ko.md`, and `README.ja.md` aligned for user-facing changes.
 - Keep client setup details in `docs/MCP_CLIENTS.md` and update the installer output when setup instructions change.
+- README first screen order: title and one-line value, badges, language links, short unofficial notice, example prompts, demo image, then "What it does" in user terms. Implementation details (rate limiting, logging, CSRF) belong in "How it works", not in the feature list.
+- Write user-facing copy plainly: no emoji section markers, no hype words, and only claims the project can back up. Example prompts and the demo image use made-up data.
+- Edit images as SVG in `docs/assets/` and re-render the PNGs (`rsvg-convert`). `mcpb/icon.png` is rendered from `docs/assets/icon.svg` at 512x512.
 - Keep shell script output in English unless maintainers decide otherwise.
 - Use generic placeholders such as `your-email@example.com`, `your-password`, and `/absolute/path/to/...`.
 - Avoid contributor-facing text that depends on a maintainer's local environment.
@@ -107,11 +139,12 @@ When testing manually with a real account, keep credentials only in the shell or
 
 Before a release-oriented commit:
 
-1. Confirm `package.json`, `package-lock.json`, and `SERVER_VERSION` in `src/config/config.ts` versions match. Users install from `main` and get an update notice when its version is newer, so bump the version only when the change should reach users.
+1. Confirm `package.json`, `package-lock.json`, `mcpb/manifest.json`, and `SERVER_VERSION` in `src/config/config.ts` versions match. Users get an update notice when `main` has a newer version, so bump the version only when the change should reach users.
 2. Confirm `package.json` still has `"private": true`.
-3. Run `npm run typecheck`, `npm test`, and `npm run build` when code changed.
+3. Run `npm run typecheck`, `npm test`, and `npm run build` when code changed, and `npm run build:mcpb` when dependencies, startup, or the manifest changed.
 4. Check that docs do not contain personal paths, credentials, copied calendar data, or private session material.
-5. Update `CHANGELOG.md` when behavior changes are user-visible.
+5. Update `CHANGELOG.md` when behavior changes are user-visible. The release workflow uses the version's CHANGELOG section as release notes and fails if it is missing.
+6. After merging the version bump, tag the merge commit `v<version>` and push the tag right away, so extension users who see the update notice can find the release. Pushing a tag publishes a release; do it only when a maintainer asks.
 
 ## Contribution Notes
 
@@ -134,5 +167,7 @@ Automated and human reviewers should flag these repository-specific issues. Leav
 - Treating the `since` sync cursor as a date filter.
 - User-visible tool changes without matching updates to `README.md`, `README.ko.md`, `README.ja.md`, `COMMANDS.md`, and `CHANGELOG.md` under `[Unreleased]`.
 - Real account data in tests, fixtures, or docs: emails, calendar names, event content, or request captures.
-- Removing `"private": true` from `package.json`, or `package.json` and `package-lock.json` versions drifting apart.
+- Removing `"private": true` from `package.json`, or `package.json`, `package-lock.json`, and `mcpb/manifest.json` versions drifting apart.
+- Adding or renaming a tool without updating `mcpb/manifest.json` `tools`.
+- Any step that publishes to npm or another package registry.
 - New runtime dependencies without a stated reason.

@@ -1,0 +1,57 @@
+name: Release
+
+# Push a tag such as v0.4.0 to build the Claude Desktop extension (.mcpb)
+# and attach it to a GitHub release. Nothing is published to npm.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Check tag matches package.json
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${VERSION}"
+            exit 1
+          fi
+
+      - run: npm run build:mcpb
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md has no section for ${VERSION}"
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "TimeTree MCP ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            build/timetree-mcp-*.mcpb

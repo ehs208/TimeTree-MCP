@@ -193,12 +193,25 @@ When adding features:
 
 ## Release Process
 
-Users install from the `main` branch, and there are no GitHub releases or npm publishes. A version bump on `main` is the release: running servers compare their version with `package.json` on `main` and show an update notice when it is newer.
+Nothing is published to npm, and `package.json` keeps `"private": true`. Users install in one of two ways:
+
+- **Git clone of `main`.** A version bump on `main` reaches them: running servers compare their version with `package.json` on `main` and show an update notice when it is newer.
+- **Claude Desktop extension (`.mcpb`).** Attached to a GitHub release. The same update notice points these users at the latest release.
 
 Maintainers will:
-1. Update `version` in `package.json` and `package-lock.json`, and `SERVER_VERSION` in `src/config/config.ts` (a test checks they match)
+1. Update `version` in `package.json`, `package-lock.json`, `mcpb/manifest.json`, and `SERVER_VERSION` in `src/config/config.ts` (tests check they match)
 2. Move the `[Unreleased]` entries in CHANGELOG.md under the new version with the date
 3. Merge to `main`
+4. Right after the merge, tag the merge commit and push the tag:
+   ```bash
+   git tag v0.4.0
+   git push origin v0.4.0
+   ```
+   The Release workflow (`.github/workflows/release.yml`) runs the tests, builds `build/timetree-mcp-<version>.mcpb`, and creates a GitHub release with the CHANGELOG section as release notes. It fails if the tag does not match `package.json` or the CHANGELOG has no section for that version.
+
+Tag soon after merging: extension users see the update notice as soon as `main` has the new version.
+
+To build the extension locally: `npm run build:mcpb`. Install the result in Claude Desktop to test it before tagging when the change touches startup, authentication, or bundling.
 
 ## Questions?
 

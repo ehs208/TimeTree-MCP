@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Claude Desktop extension (`.mcpb`) for macOS and Windows: download it from GitHub releases and open it to install. Claude Desktop asks for the TimeTree email and password, so no clone, build, or config file is needed. Nothing is published to npm.
+- GitHub releases: each version tag gets a release with the extension attached and the changelog section as release notes.
+- The update notice tells extension users to download the latest release instead of running `git pull`.
 - Added `get_holidays` for public holidays and memorial days by country and date range.
 - Added `start_before`, `query`, `label_id`, and `include_memos` filters to `get_events`.
 - `get_events` expands recurring events into their occurrences when `start_before` is set (`expand_recurring`, default on). EXDATE exceptions are honored.
@@ -16,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_updated_events` marks deleted events with `deleted` and `deleted_at`.
 
 ### Changed
+- README rewritten in English, Korean, and Japanese: example prompts, a demo image, user-facing features, and the one-click extension as the first install option for Claude Desktop.
 - Node.js 22 or later is now required. Node.js 18 and 20 are past end-of-life; CI tests Node.js 22 and 24.
 - `get_events` now returns events sorted by start time, so `limit` keeps the earliest matches.
 - Every tool now accepts `calendar_id` as a string or a number, matching the string IDs returned by `list_calendars`.
@@ -32,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event, memo, comment, and calendar IDs are validated before they are used in request paths, so a crafted ID cannot redirect a request to another endpoint.
 - `update_memo` and `delete_memo` refuse regular events instead of converting them into memos or deleting them.
 - Fixed the Codex `config.toml` example in the docs and installer output (`[mcp_servers.timetree]`).
-- Docs no longer refer to GitHub releases; changes are tracked in this changelog and installed from `main`.
 - Added a Japanese section to DISCLAIMER.md.
 
 ## [0.3.0] - 2026-05-25

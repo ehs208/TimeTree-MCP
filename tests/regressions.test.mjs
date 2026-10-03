@@ -8,7 +8,8 @@ import { createUpdateMemoTool, createDeleteMemoTool } from '../.test-dist/tools/
 import { createGetEventsTool, createGetUpdatedEventsTool } from '../.test-dist/tools/event-tools.js';
 import { createGetCalendarLabelsTool } from '../.test-dist/tools/calendar-metadata-tools.js';
 import { SERVER_VERSION } from '../.test-dist/config/config.js';
-import { isNewerVersion, fetchNewerVersion } from '../.test-dist/utils/update-check.js';
+import { isNewerVersion, fetchNewerVersion, formatUpdateNotice } from '../.test-dist/utils/update-check.js';
+import { registerTools } from '../.test-dist/tools/index.js';
 import { readFileSync } from 'node:fs';
 
 function makeEvent(overrides = {}) {
@@ -214,6 +215,24 @@ test('concurrent first calls share a single sign-in', async () => {
 test('SERVER_VERSION matches package.json', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(SERVER_VERSION, pkg.version);
+});
+
+test('mcpb manifest version and tool list match the server', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const manifest = JSON.parse(readFileSync(new URL('../mcpb/manifest.json', import.meta.url), 'utf8'));
+  assert.equal(manifest.version, pkg.version);
+  const serverTools = registerTools({}).map((tool) => tool.name).sort();
+  assert.deepEqual(manifest.tools.map((tool) => tool.name).sort(), serverTools);
+});
+
+test('update notice points .mcpb installs at the release download', () => {
+  const mcpb = formatUpdateNotice('0.3.0', '0.4.0', 'mcpb');
+  assert.match(mcpb, /releases\/latest/);
+  assert.doesNotMatch(mcpb, /git pull/);
+
+  const git = formatUpdateNotice('0.3.0', '0.4.0', undefined);
+  assert.match(git, /git pull origin main/);
+  assert.doesNotMatch(git, /releases/);
 });
 
 test('isNewerVersion compares x.y.z numerically', () => {

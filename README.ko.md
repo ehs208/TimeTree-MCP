@@ -1,66 +1,72 @@
-# TimeTree MCP Server
+<p align="center">
+  <img src="docs/assets/icon.svg" alt="" width="96" height="96">
+</p>
 
-[English](README.md) | [한국어](#한국어) | [日本語](README.ja.md)
+<h1 align="center">TimeTree MCP</h1>
 
-## 한국어
+<p align="center">
+  Claude, Codex, Cursor 같은 MCP 클라이언트에서 TimeTree 캘린더와 대화합니다.
+</p>
 
-> ⚠️ **면책조항**: 이것은 **개인 사용 전용** **비공식** TimeTree MCP 서버입니다. TimeTree, Inc.와 제휴 관계가 없으며 언제든 작동이 중단될 수 있습니다. 자세한 내용은 [DISCLAIMER.md](DISCLAIMER.md)를 참조하십시오.
+<p align="center">
+  <a href="https://github.com/ehs208/TimeTree-MCP/actions/workflows/ci.yml"><img src="https://github.com/ehs208/TimeTree-MCP/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ehs208/TimeTree-MCP/releases/latest"><img src="https://img.shields.io/github/v/release/ehs208/TimeTree-MCP?label=release" alt="최신 릴리스"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
+</p>
 
-Claude, Codex, Cursor, Windsurf 같은 MCP 클라이언트에서 TimeTree 캘린더, 일정, 메모, 댓글, 라벨, 멤버 정보를 로컬로 읽고 관리할 수 있게 해주는 비공식 MCP (Model Context Protocol) 서버입니다. 인증 정보는 MCP 클라이언트 설정에만 저장합니다.
+<p align="center">
+  <a href="README.md">English</a> | 한국어 | <a href="README.ja.md">日本語</a>
+</p>
 
-> **크레딧**: 이 프로젝트는 [@eoleedi](https://github.com/eoleedi)의 [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter)에서 영감을 받았으며 API 분석 결과를 활용했습니다.
+> [!NOTE]
+> 개인 사용을 위한 비공식 프로젝트입니다. TimeTree, Inc.와 관계가 없습니다. TimeTree 웹 앱의 비공개 엔드포인트를 사용하므로 언제든 동작이 바뀔 수 있습니다. 자세한 내용은 [DISCLAIMER.md](DISCLAIMER.md)를 참고하십시오.
 
-### 기능
+AI 어시스턴트에게 이렇게 물어보면 됩니다.
 
-- 📅 **캘린더 목록** - 모든 TimeTree 캘린더 가져오기
-- 📆 **이벤트 조회** - 자동 페이지네이션으로 캘린더 이벤트 조회
-- ➕ **이벤트 생성** - 캘린더에 새 이벤트 추가
-- ✏️ **이벤트 수정** - 기존 이벤트 수정
-- 🗑️ **이벤트 삭제** - 캘린더에서 이벤트 제거
-- 🗒️ **메모 관리** - TimeTree 메모 조회, 생성, 수정, 삭제
-- 💬 **댓글 관리** - 이벤트 댓글 추가, 조회, 수정, 삭제
-- 🏷️ **캘린더 메타데이터** - 라벨 조회/수정 및 멤버/가상 멤버 조회
-- 🎌 **공휴일 조회** - 국가와 기간으로 공휴일 조회
-- 🕘 **최근 활동** - 누가 일정과 메모를 만들고, 바꾸고, 지웠는지 확인
-- 🔐 **안전한 인증** - 이메일/비밀번호 인증 (MCP 설정에만 저장), 세션이 만료되면 자동으로 다시 로그인
-- ⚡ **속도 제한** - Token Bucket 알고리즘으로 API 과부하 방지
-- 🔄 **자동 페이지네이션** - 여러 페이지에 걸친 모든 이벤트 자동 조회
-- 🛡️ **에러 처리** - 사용자 친화적 메시지와 포괄적인 에러 처리
-- 📝 **구조화된 로깅** - 민감한 데이터 마스킹이 포함된 상세 로그
+- "이번 주 가족 캘린더 정리해줘. 겹치는 일정 있어?"
+- "마지막으로 치과 간 게 언제였지?"
+- "토요일 저녁 7시에 가족 캘린더에 저녁 약속 추가해줘."
+- "이 여행 계획을 일정이랑 준비물 메모로 만들어줘."
+- "오늘 누가 캘린더에서 뭘 바꿨어?"
 
-### 요구사항
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="어시스턴트가 TimeTree MCP로 이번 주 일정을 읽고 토요일 일정 충돌을 알려주는 예시" width="760">
+</p>
 
-- Node.js >= 22
-- Git (설치용)
-- TimeTree 계정
-- MCP 호환 클라이언트 (Claude Desktop, Claude Code, Codex, Antigravity, Cline 등)
+## 할 수 있는 일
 
-### 설치
+- **캘린더를 읽습니다.** 날짜, 키워드, 라벨로 일정을 거르고, 반복 일정은 실제 날짜로 펼쳐서 보여줍니다.
+- **요청하면 바꿉니다.** 일정, 메모, 댓글을 만들고 고치고 지우며, 라벨 이름과 색도 바꿉니다.
+- **변경 사항을 알려줍니다.** 특정 시점 이후 바뀐 일정과 최근에 누가 무엇을 바꿨는지 확인합니다.
+- **맥락을 압니다.** 캘린더 멤버와 국가별 공휴일을 조회합니다.
+- **내 컴퓨터에서 실행됩니다.** 이메일과 비밀번호는 TimeTree에만 전송하고, 세션은 메모리에만 둡니다.
 
-#### 🚀 에이전트를 위한 빠른 설치
+## 설치
 
-Codex, Claude Code 같은 코딩 에이전트에게 아래 프롬프트를 입력하세요:
+### Claude Desktop (macOS, Windows): 원클릭 확장 프로그램
+
+1. [최신 릴리스](https://github.com/ehs208/TimeTree-MCP/releases/latest)에서 `timetree-mcp-<버전>.mcpb`를 내려받습니다.
+2. 파일을 엽니다. Claude Desktop에 설치 창이 뜹니다.
+3. TimeTree 이메일과 비밀번호를 입력하고 확장 프로그램을 켭니다.
+
+Git, Node.js 설치나 설정 파일 편집이 필요 없습니다. macOS와 Windows용 Claude Desktop에 들어 있는 Node.js로 실행됩니다.
+
+### Claude Code, Codex, Cursor 등 다른 클라이언트
+
+Node.js 22 이상과 Git이 필요합니다.
+
+**코딩 에이전트에게 맡기기.** Claude Code, Codex 같은 에이전트에 아래 내용을 붙여넣습니다.
 
 > `https://github.com/ehs208/TimeTree-MCP`를 클론하고, 클론한 디렉토리 안에서 `npm ci && npm run build`를 실행한 뒤, 내 MCP 클라이언트에 `timetree` 서버를 추가해줘. 실행 명령은 `node /absolute/path/to/TimeTree-MCP/dist/index.js` 형태로 실제 clone 경로를 사용하고, `TIMETREE_EMAIL`과 `TIMETREE_PASSWORD`는 MCP 클라이언트의 환경변수 설정에만 저장하며 절대 코드나 로그에 직접 쓰지 마.
 
-도움이 됐다면 GitHub star로 응원해주세요: https://github.com/ehs208/TimeTree-MCP
-
-#### 빠른 설치 (권장)
-
-**한 줄 설치** - 자동으로 복제, 빌드, 선택적 `npm link` 시도 후 클라이언트 설정 예시를 출력:
+**설치 스크립트 실행.** 클론과 빌드를 하고 클라이언트별 설정 예시를 출력합니다.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-MCP-install.sh | bash
 ```
 
-이 프로젝트는 npm registry가 아니라 GitHub clone 기준으로 설치합니다. 스크립트가 로컬 clone을 빌드하고 선택적으로 `npm link`를 실행한 뒤, 절대 `node`/`dist/index.js` 경로를 사용하는 MCP 클라이언트 설정 예시를 보여줍니다. 사용하는 클라이언트의 설정을 복사하고 TimeTree 인증 정보만 입력하면 됩니다.
-
-#### 수동 설치
-
 <details>
-<summary>수동 설치 단계 보기</summary>
-
-1. **복제 및 빌드:**
+<summary>수동 설치</summary>
 
 ```bash
 git clone https://github.com/ehs208/TimeTree-MCP.git
@@ -69,17 +75,7 @@ npm ci
 npm run build
 ```
 
-2. **MCP 클라이언트 설정:**
-
-아래 [설정](#설정) 섹션을 참조하여 사용하는 MCP 클라이언트에 맞게 설정하세요.
-
-</details>
-
-### 설정
-
-**빠른 예시 (Claude Desktop - macOS):**
-
-`~/Library/Application Support/Claude/claude_desktop_config.json` 파일 수정:
+그다음 MCP 클라이언트에 서버를 추가합니다. macOS의 Claude Desktop 예시입니다(`~/Library/Application Support/Claude/claude_desktop_config.json`).
 
 ```json
 {
@@ -96,116 +92,65 @@ npm run build
 }
 ```
 
-경로를 실제 clone 경로로 바꾸세요. GUI 클라이언트가 `node`를 찾지 못하면 `command -v node` 결과의 절대경로를 `command`로 사용하세요. 그 다음 Claude Desktop을 재시작하세요 (Cmd+Q로 종료 후 재실행).
+GUI 클라이언트가 `node`를 찾지 못하면 `command -v node`로 나온 절대 경로를 `command`에 넣습니다.
 
-📖 **모든 MCP 클라이언트 설정 (Claude Desktop Windows, Claude Code CLI, Codex, Antigravity, VS Code 에디터 등):**
-→ 자세한 설정 방법은 **[docs/MCP_CLIENTS.md](docs/MCP_CLIENTS.md)** 참조
+</details>
 
-### 업데이트
+클라이언트별 설정(Claude Code, Codex, Cursor, Windsurf, VS Code, Antigravity 등): [docs/MCP_CLIENTS.md](docs/MCP_CLIENTS.md)
 
-최신 버전으로 업데이트하려면:
+이 프로젝트는 npm에 배포하지 않습니다. GitHub 릴리스나 이 레포 clone으로 설치합니다.
 
-```bash
-cd /path/to/TimeTree-MCP  # 또는 설치 경로
-git pull origin main
-npm ci
-npm run build
-```
+## 업데이트
 
-그 다음 MCP 클라이언트를 재시작하세요.
+새 버전이 나오면 서버가 툴 응답에 안내를 한 번 덧붙여서 어시스턴트가 알려줄 수 있게 합니다. 끄려면 MCP `env`에 `TIMETREE_UPDATE_CHECK=false`를 설정합니다.
 
-`main`에 새 버전이 올라오면 서버가 툴 응답에 한 번 안내를 붙여서 AI 어시스턴트가 알려줄 수 있게 합니다. 끄려면 MCP `env`에 `TIMETREE_UPDATE_CHECK=false`를 설정하세요.
+- **Claude Desktop 확장 프로그램:** [최신 릴리스](https://github.com/ehs208/TimeTree-MCP/releases/latest)에서 새 `.mcpb`를 내려받아 엽니다.
+- **Git clone:** 설치 폴더에서 `git pull origin main && npm ci && npm run build`를 실행하고 MCP 클라이언트를 재시작합니다.
 
-📖 **자세한 업데이트 방법 및 문제 해결:**
-→ **[docs/UPDATING.md](docs/UPDATING.md)** 참조
+자세한 방법: [docs/UPDATING.md](docs/UPDATING.md). 변경 내역: [CHANGELOG.md](CHANGELOG.md).
 
-### 사용법
+## 툴
 
-📖 **자세한 사용 예시와 워크플로우는 [COMMANDS.md](COMMANDS.md) 참조**
+| 영역 | 툴 |
+|---|---|
+| 캘린더 | `list_calendars` |
+| 일정 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
+| 메모 | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
+| 댓글 | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
+| 라벨과 멤버 | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members` |
+| 기타 | `get_holidays`, `get_recent_activity` |
 
-### MCP 도구
+파라미터와 사용 예시: [COMMANDS.md](COMMANDS.md)
 
-- **list_calendars** - 참여 중인 사용자와 함께 모든 캘린더 조회
-- **get_events** - 자동 페이지네이션으로 캘린더 이벤트 조회 (시작 시간순 정렬, 키워드/라벨/기간 필터, 기간 내 반복 일정 펼침)
-- **get_updated_events** - 특정 시간 이후 업데이트된 이벤트 조회 (삭제된 이벤트는 `deleted: true`로 표시해 함께 반환)
-- **create_event** - 캘린더에 새 이벤트 생성 (알림, 반복, 참석자, 체크리스트 지원)
-- **update_event** - 기존 이벤트 수정
-- **delete_event** - 캘린더에서 이벤트 삭제
-- **list_memos / create_memo / update_memo / delete_memo** - TimeTree 메모 관리
-- **add_event_comment / list_event_comments / update_event_comment / delete_event_comment** - 이벤트 댓글 관리
-- **get_calendar_labels / update_calendar_labels** - 캘린더 라벨 조회 또는 병합 업데이트
-- **get_calendar_members / get_calendar_virtual_members** - 캘린더 멤버 메타데이터 조회
-- **get_holidays** - 기간 내 공휴일과 기념일 조회
-- **get_recent_activity** - 최근 변경된 일정과 메모, 변경한 사람 조회
+## 개인정보와 보안
 
-📖 파라미터와 사용 세부사항은 [COMMANDS.md](COMMANDS.md) 참조
+- 이메일과 비밀번호는 MCP 클라이언트 설정이나 Claude Desktop 확장 프로그램 설정에만 저장되고, TimeTree에만 전송됩니다.
+- 세션 쿠키와 CSRF 토큰은 메모리에만 두고 디스크에 쓰지 않습니다.
+- 로그에서 비밀번호, 쿠키, 토큰을 가립니다.
+- 서버가 시작할 때 새 버전 확인을 위해 GitHub에 한 번 요청합니다. 인증 정보나 캘린더 데이터는 보내지 않습니다.
 
-### 개발
+## 문제 해결
 
-```bash
-# 프로젝트 빌드
-npm run build
+**"Missing required environment variables"**: MCP 설정에 `TIMETREE_EMAIL`과 `TIMETREE_PASSWORD`를 넣습니다. Claude Desktop 확장 프로그램이라면 설정을 열어 다시 입력합니다.
 
-# Watch 모드 (변경사항 자동 재빌드)
-npm run dev
-```
+**로그인 실패**: 같은 이메일과 비밀번호로 TimeTree 웹 앱에 로그인되는지 확인합니다. 이 서버는 이메일과 비밀번호 로그인만 지원합니다.
 
-### 제한사항
+**캘린더나 일정이 안 나옴**: 계정에 캘린더가 있는지 확인하고 클라이언트의 MCP 로그를 봅니다. TimeTree 웹 API가 바뀌었을 수 있으니 [이슈](https://github.com/ehs208/TimeTree-MCP/issues)로 알려주십시오.
 
-- **비공식 API**: TimeTree가 내부 API를 변경하면 작동이 중단될 수 있습니다
-- **속도 제한**: 초당 10개 요청 (429 에러 시 자동 재시도)
-- **공식 지원 없음**: TimeTree는 이 도구를 공식적으로 지원하지 않습니다
-- **CSRF 토큰 필요**: 쓰기 작업은 CSRF 토큰 필요 (TimeTree 웹페이지에서 자동 추출)
+## 동작 방식
 
-### 보안
+서버는 이메일과 비밀번호로 TimeTree 웹 앱에 로그인한 뒤, 웹 앱이 쓰는 엔드포인트를 그대로 호출합니다. 세션이 만료되면 다시 로그인하고, 요청은 초당 10회로 제한하며 HTTP 429에는 재시도합니다. 일정이 많은 캘린더도 모든 페이지를 읽습니다.
 
-- 인증 정보는 **오직** 로컬 MCP 설정에만 저장됩니다
-- 세션 쿠키는 메모리에만 저장 (디스크에 저장되지 않음)
-- 비밀번호와 세션 ID는 로그에서 자동으로 마스킹됩니다
-- 모든 통신은 HTTPS를 사용합니다
-- 서버 시작 시 새 버전 확인을 위해 GitHub에 요청을 한 번 보냅니다. 인증 정보나 캘린더 데이터는 보내지 않습니다
+쓰기 요청에는 CSRF 토큰이 필요하며, 서버가 로그인 후 TimeTree 웹 페이지에서 읽어옵니다.
 
-### 문제 해결
+## 기여
 
-#### "Missing required environment variables" 오류
+이슈와 PR을 환영합니다. [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하십시오.
 
-MCP 설정에 `TIMETREE_EMAIL`과 `TIMETREE_PASSWORD`가 설정되어 있는지 확인하세요.
+## 크레딧
 
-#### 인증 실패
+[@eoleedi](https://github.com/eoleedi)의 [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter)에서 API 분석 결과를 참고했습니다.
 
-- 이메일과 비밀번호가 올바른지 확인하세요
-- TimeTree 웹 앱에 로그인할 수 있는지 확인하세요
-- TimeTree가 인증 API를 변경했을 수 있습니다
+## 라이선스
 
-#### 캘린더나 이벤트가 반환되지 않음
-
-- TimeTree 계정에 캘린더/이벤트가 있는지 확인하세요
-- 자세한 오류 메시지는 로그를 확인하세요
-- API가 변경되었을 수 있습니다
-
-### 기여
-
-기여를 환영합니다! 다음 절차를 따라주세요:
-
-1. 저장소 포크
-2. 기능 브랜치 생성
-3. 변경사항 작성
-4. Pull Request 제출
-
-### 라이선스
-
-MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
-
-### 프로젝트 응원
-
-이 프로젝트가 도움이 되었다면 GitHub Star를 눌러주세요. 다른 사용자가 프로젝트를 찾는 데 도움이 됩니다.
-
-### 면책조항
-
-중요한 법적 및 사용 정보는 [DISCLAIMER.md](DISCLAIMER.md) 참조
-
----
-
-**TIMETREE, INC.와 제휴 관계가 없습니다**
-
-이것은 독립적이고 커뮤니티가 유지관리하는 프로젝트입니다.
+MIT. [LICENSE](LICENSE)를 참고하십시오. TimeTree, Inc.와 관계가 없습니다. [DISCLAIMER.md](DISCLAIMER.md)를 참고하십시오.

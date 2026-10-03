@@ -2,6 +2,17 @@
 
 Keep your TimeTree MCP server up-to-date with the latest features and fixes.
 
+How you update depends on how you installed:
+
+- **Claude Desktop extension (.mcpb):** see [Claude Desktop extension](#claude-desktop-extension).
+- **Git clone or installer script:** follow the steps below.
+
+## Claude Desktop extension
+
+1. Download the new `timetree-mcp-<version>.mcpb` from the [latest release](https://github.com/ehs208/TimeTree-MCP/releases/latest).
+2. Open the file. Claude Desktop replaces the installed extension.
+3. If Claude Desktop asks for your TimeTree email and password again, enter them.
+
 ## Quick Update
 
 ```bash
@@ -101,7 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-M
 
 ## Update Notifications
 
-On startup, the server compares its version with the `version` in `package.json` on the `main` branch. If a newer version exists, the next tool response includes a short notice asking your AI assistant to tell you about the update and how to install it.
+On startup, the server compares its version with the `version` in `package.json` on the `main` branch. If a newer version exists, the next tool response includes a short notice asking your AI assistant to tell you about the update and how to install it. Claude Desktop extension installs are pointed at the latest release download; git installs are told to pull and rebuild.
 
 - The check is one HTTPS request to `raw.githubusercontent.com`. It sends no credentials or calendar data.
 - If the request fails or times out (3 seconds), the server starts normally without a notice.
@@ -110,7 +121,7 @@ On startup, the server compares its version with the `version` in `package.json`
 
 ## What's New?
 
-See [CHANGELOG.md](../CHANGELOG.md) for changes in each version. This project does not publish GitHub releases; updates are installed from the `main` branch.
+See [CHANGELOG.md](../CHANGELOG.md) for changes in each version. Each version is also published as a [GitHub release](https://github.com/ehs208/TimeTree-MCP/releases) with the Claude Desktop extension attached. Nothing is published to npm.
 
 ## Need Help?
 

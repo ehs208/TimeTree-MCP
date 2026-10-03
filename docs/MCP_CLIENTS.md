@@ -2,6 +2,8 @@
 
 This guide provides detailed configuration instructions for all supported MCP clients.
 
+> **Claude Desktop on macOS or Windows:** the easiest way is the one-click extension. Download `timetree-mcp-<version>.mcpb` from the [latest release](https://github.com/ehs208/TimeTree-MCP/releases/latest), open it, and enter your TimeTree email and password. No clone, build, or config file is needed. The rest of this guide is for git installs.
+
 ## Quick Reference
 
 All clients use the same basic configuration format:

@@ -1,12 +1,12 @@
 /**
  * Update check
  *
- * Users install from a git clone of the default branch, so the newest version is the
- * `version` in that branch's package.json. MCP clients rarely surface server logs, so a
+ * Users install from a git clone of the default branch or from a Claude Desktop extension
+ * (.mcpb) built from it, so the newest version is the `version` in that branch's package.json. MCP clients rarely surface server logs, so a
  * pending update is reported to the assistant inside the next tool response instead.
  */
 
-import { CHANGELOG_URL, UPDATE_CHECK_URL } from '../config/config.js';
+import { CHANGELOG_URL, RELEASES_URL, UPDATE_CHECK_URL } from '../config/config.js';
 import { logger } from './logger.js';
 
 const CHECK_TIMEOUT_MS = 3000;
@@ -48,12 +48,29 @@ export async function fetchNewerVersion(
   }
 }
 
-export function formatUpdateNotice(currentVersion: string, latestVersion: string): string {
+/**
+ * The .mcpb manifest sets TIMETREE_INSTALL_SOURCE=mcpb; those installs have no git folder
+ * to pull, so they are pointed at the release download instead.
+ */
+export function formatUpdateNotice(
+  currentVersion: string,
+  latestVersion: string,
+  installSource: string | undefined = process.env.TIMETREE_INSTALL_SOURCE
+): string {
+  const howTo =
+    installSource === 'mcpb'
+      ? [
+          `To update: download the latest timetree-mcp .mcpb file from ${RELEASES_URL}`,
+          'and open it to reinstall the Claude Desktop extension.',
+        ]
+      : [
+          'To update: re-run the TimeTree MCP installer, or run `git pull origin main && npm ci && npm run build`',
+          'in the TimeTree-MCP folder, then restart the MCP client.',
+        ];
   return [
     `[TimeTree MCP update available: ${currentVersion} -> ${latestVersion}]`,
     'Please tell the user about this update in your reply.',
-    'To update: re-run the TimeTree MCP installer, or run `git pull origin main && npm ci && npm run build`',
-    'in the TimeTree-MCP folder, then restart the MCP client.',
+    ...howTo,
     `What changed: ${CHANGELOG_URL}`,
   ].join('\n');
 }

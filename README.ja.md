@@ -1,66 +1,72 @@
-# TimeTree MCP Server
+<p align="center">
+  <img src="docs/assets/icon.svg" alt="" width="96" height="96">
+</p>
 
-[English](README.md) | [한국어](README.ko.md) | [日本語](#日本語)
+<h1 align="center">TimeTree MCP</h1>
 
-## 日本語
+<p align="center">
+  Claude、Codex、Cursor などの MCP クライアントから TimeTree カレンダーと会話できます。
+</p>
 
-> ⚠️ **免責事項**: これは**個人利用向け**の**非公式** TimeTree MCP サーバーです。TimeTree, Inc. とは提携していません。いつでも動作しなくなる可能性があります。詳細は [DISCLAIMER.md](DISCLAIMER.md) を参照してください。
+<p align="center">
+  <a href="https://github.com/ehs208/TimeTree-MCP/actions/workflows/ci.yml"><img src="https://github.com/ehs208/TimeTree-MCP/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ehs208/TimeTree-MCP/releases/latest"><img src="https://img.shields.io/github/v/release/ehs208/TimeTree-MCP?label=release" alt="最新リリース"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
+</p>
 
-Claude、Codex、Cursor、Windsurf などの MCP クライアントから、TimeTree のカレンダー、イベント、メモ、コメント、ラベル、メンバー情報をローカルで読み取り・管理できるようにする非公式の MCP (Model Context Protocol) サーバーです。認証情報は MCP クライアント設定にのみ保存します。
+<p align="center">
+  <a href="README.md">English</a> | <a href="README.ko.md">한국어</a> | 日本語
+</p>
 
-> **クレジット**: このプロジェクトは [@eoleedi](https://github.com/eoleedi) による [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) から着想を得ており、API に関する知見も参考にしています。
+> [!NOTE]
+> 個人利用向けの非公式プロジェクトです。TimeTree, Inc. とは関係ありません。TimeTree Web アプリの非公開エンドポイントを使うため、いつでも動作が変わる可能性があります。詳細は [DISCLAIMER.md](DISCLAIMER.md) を参照してください。
 
-### 機能
+AI アシスタントに次のように聞くだけです。
 
-- 📅 **カレンダー一覧** - TimeTree のすべてのカレンダーを取得
-- 📆 **イベント取得** - 自動ページネーションで任意のカレンダーのイベントを取得
-- ➕ **イベント作成** - カレンダーに新しいイベントを追加
-- ✏️ **イベント更新** - 既存イベントを変更
-- 🗑️ **イベント削除** - カレンダーからイベントを削除
-- 🗒️ **メモ管理** - TimeTree メモの一覧取得、作成、更新、削除
-- 💬 **コメント管理** - イベントコメントの追加、一覧取得、更新、削除
-- 🏷️ **カレンダーメタデータ** - ラベルの取得/更新、メンバー/仮想メンバーの確認
-- 🎌 **祝日** - 国と期間を指定して祝日を取得
-- 🕘 **最近のアクティビティ** - 誰が予定やメモを作成・変更・削除したかを確認
-- 🔐 **安全な認証** - メールアドレス/パスワード認証（MCP 設定にのみ保存）。セッションが切れると自動で再ログイン
-- ⚡ **レート制限** - Token Bucket アルゴリズムで API 負荷を抑制
-- 🔄 **自動ページネーション** - 複数ページにまたがるイベントを自動取得
-- 🛡️ **エラー処理** - ユーザーに分かりやすい包括的なエラー処理
-- 📝 **構造化ログ** - 機密データをマスクした詳細ログ
+- 「今週の家族カレンダーをまとめて。予定の重なりはある？」
+- 「最後に歯医者に行ったのはいつ？」
+- 「土曜の 19 時に家族カレンダーへ夕食の予定を追加して。」
+- 「この旅行プランを予定と持ち物メモにして。」
+- 「今日カレンダーを変更したのは誰？何を変えた？」
 
-### 必要条件
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="アシスタントが TimeTree MCP で今週の予定を読み、土曜日の予定の重なりを指摘する例" width="760">
+</p>
 
-- Node.js >= 22
-- Git（インストール用）
-- TimeTree アカウント
-- MCP 対応クライアント（Claude Desktop、Claude Code、Codex、Antigravity、Cline など）
+## できること
 
-### インストール
+- **カレンダーを読む。** 日付、キーワード、ラベルで予定を絞り込み、繰り返し予定は実際の日付に展開します。
+- **頼めば変更する。** 予定、メモ、コメントの作成、更新、削除と、ラベル名や色の変更ができます。
+- **変更を把握する。** ある時点以降に変わった予定と、最近だれが何を変えたかを確認できます。
+- **文脈がわかる。** カレンダーのメンバーと国ごとの祝日を取得します。
+- **自分のパソコンで動く。** メールアドレスとパスワードは TimeTree にだけ送信し、セッションはメモリにだけ保持します。
 
-#### 🚀 エージェント向けクイックインストール
+## インストール
 
-Codex、Claude Code、その他のコーディングエージェントに次のプロンプトを貼り付けてください:
+### Claude Desktop（macOS、Windows）: ワンクリック拡張機能
+
+1. [最新リリース](https://github.com/ehs208/TimeTree-MCP/releases/latest)から `timetree-mcp-<バージョン>.mcpb` をダウンロードします。
+2. ファイルを開きます。Claude Desktop にインストール画面が表示されます。
+3. TimeTree のメールアドレスとパスワードを入力し、拡張機能を有効にします。
+
+Git や Node.js のインストール、設定ファイルの編集は不要です。macOS と Windows の Claude Desktop に含まれる Node.js で動作します。
+
+### Claude Code、Codex、Cursor などのクライアント
+
+Node.js 22 以上と Git が必要です。
+
+**コーディングエージェントに任せる。** Claude Code、Codex などのエージェントに次の内容を貼り付けます。
 
 > Clone `https://github.com/ehs208/TimeTree-MCP`, enter the cloned directory, run `npm ci && npm run build`, then configure my MCP client with a server named `timetree` that runs `node /absolute/path/to/TimeTree-MCP/dist/index.js` (use the real cloned path). Store `TIMETREE_EMAIL` and `TIMETREE_PASSWORD` only in the MCP client environment configuration, and never hardcode or print secrets.
 
-役に立った場合は GitHub star で応援してください: https://github.com/ehs208/TimeTree-MCP
-
-#### クイックインストール（推奨）
-
-**1 行インストール** - 自動で clone、ビルド、任意の `npm link` を試行し、クライアント設定例を表示します:
+**インストーラーを実行する。** clone とビルドを行い、クライアントごとの設定例を表示します。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ehs208/TimeTree-MCP/main/TimeTree-MCP-install.sh | bash
 ```
 
-このプロジェクトは npm registry ではなく GitHub clone からインストールします。スクリプトはローカル clone をビルドし、必要に応じて `npm link` を実行したあと、絶対パスの `node`/`dist/index.js` を使う MCP クライアント設定例を表示します。利用するクライアント用の設定をコピーし、TimeTree 認証情報を入力してください。
-
-#### 手動インストール
-
 <details>
-<summary>手動インストール手順を表示</summary>
-
-1. **clone とビルド:**
+<summary>手動インストール</summary>
 
 ```bash
 git clone https://github.com/ehs208/TimeTree-MCP.git
@@ -69,17 +75,7 @@ npm ci
 npm run build
 ```
 
-2. **MCP クライアントの設定:**
-
-下の [設定](#設定) セクションを参照して、利用する MCP クライアントに設定してください。
-
-</details>
-
-### 設定
-
-**クイック例（Claude Desktop - macOS）:**
-
-`~/Library/Application Support/Claude/claude_desktop_config.json` を編集します:
+次に MCP クライアントへサーバーを追加します。macOS の Claude Desktop の例です（`~/Library/Application Support/Claude/claude_desktop_config.json`）。
 
 ```json
 {
@@ -96,116 +92,65 @@ npm run build
 }
 ```
 
-パスは実際に clone したリポジトリのパスに置き換えてください。GUI クライアントが `node` を見つけられない場合は、`command -v node` の結果の絶対パスを `command` に指定してください。その後 Claude Desktop を再起動します（Cmd+Q で終了して再起動）。
+GUI クライアントが `node` を見つけられない場合は、`command -v node` で表示される絶対パスを `command` に指定します。
 
-📖 **すべての MCP クライアント（Claude Desktop Windows、Claude Code CLI、Codex、Antigravity、VS Code 系エディタなど）の設定:**
-→ 詳細な設定手順は **[docs/MCP_CLIENTS.md](docs/MCP_CLIENTS.md)** を参照してください
+</details>
 
-### 更新
+クライアントごとの設定（Claude Code、Codex、Cursor、Windsurf、VS Code、Antigravity など）: [docs/MCP_CLIENTS.md](docs/MCP_CLIENTS.md)
 
-最新バージョンへ更新するには:
+このプロジェクトは npm で公開していません。GitHub リリースか、このリポジトリの clone からインストールします。
 
-```bash
-cd /path/to/TimeTree-MCP  # またはインストール先のパス
-git pull origin main
-npm ci
-npm run build
-```
+## 更新
 
-その後、MCP クライアントを再起動してください。
+新しいバージョンが出ると、サーバーがツールの応答に一度だけお知らせを追加し、アシスタントから伝えられるようにします。無効にするには MCP の `env` に `TIMETREE_UPDATE_CHECK=false` を設定します。
 
-`main` に新しいバージョンがあると、サーバーはツール応答に一度だけ通知を付け、AI アシスタントから知らせてもらえるようにします。無効にするには MCP の `env` に `TIMETREE_UPDATE_CHECK=false` を設定してください。
+- **Claude Desktop 拡張機能:** [最新リリース](https://github.com/ehs208/TimeTree-MCP/releases/latest)から新しい `.mcpb` をダウンロードして開きます。
+- **Git clone:** インストールフォルダで `git pull origin main && npm ci && npm run build` を実行し、MCP クライアントを再起動します。
 
-📖 **詳しい更新手順とトラブルシューティング:**
-→ **[docs/UPDATING.md](docs/UPDATING.md)** を参照してください
+詳しい手順: [docs/UPDATING.md](docs/UPDATING.md)。変更履歴: [CHANGELOG.md](CHANGELOG.md)。
 
-### 使い方
+## ツール
 
-📖 **詳しい使用例とワークフローは [COMMANDS.md](COMMANDS.md) を参照してください**
+| 分類 | ツール |
+|---|---|
+| カレンダー | `list_calendars` |
+| 予定 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
+| メモ | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
+| コメント | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
+| ラベルとメンバー | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members` |
+| その他 | `get_holidays`, `get_recent_activity` |
 
-### MCP ツール
+パラメータと使用例: [COMMANDS.md](COMMANDS.md)
 
-- **list_calendars** - 参加ユーザー情報付きですべてのカレンダーを一覧表示
-- **get_events** - 自動ページネーションでカレンダーのイベントを取得（開始時刻順、キーワード/ラベル/期間フィルター、期間内の繰り返し予定を展開）
-- **get_updated_events** - 指定時刻以降に更新されたイベントを取得（削除されたイベントも `deleted: true` 付きで返す）
-- **create_event** - カレンダーに新しいイベントを作成（通知、繰り返し、参加者、チェックリストに対応）
-- **update_event** - 既存イベントを更新
-- **delete_event** - カレンダーからイベントを削除
-- **list_memos / create_memo / update_memo / delete_memo** - TimeTree メモを管理
-- **add_event_comment / list_event_comments / update_event_comment / delete_event_comment** - イベントコメントを管理
-- **get_calendar_labels / update_calendar_labels** - カレンダーラベルを取得またはマージ更新
-- **get_calendar_members / get_calendar_virtual_members** - カレンダーメンバーのメタデータを取得
-- **get_holidays** - 期間内の祝日と記念日を取得
-- **get_recent_activity** - 最近変更された予定とメモ、変更者を取得
+## プライバシーとセキュリティ
 
-📖 パラメータと詳しい使い方は [COMMANDS.md](COMMANDS.md) を参照してください。
+- メールアドレスとパスワードは MCP クライアントの設定、または Claude Desktop 拡張機能の設定にだけ保存され、TimeTree にだけ送信されます。
+- セッション Cookie と CSRF トークンはメモリにだけ保持し、ディスクには書き込みません。
+- ログではパスワード、Cookie、トークンをマスクします。
+- 起動時に新しいバージョンを確認するため GitHub に 1 回リクエストを送ります。認証情報やカレンダーデータは送信しません。
 
-### 開発
+## トラブルシューティング
 
-```bash
-# プロジェクトをビルド
-npm run build
+**"Missing required environment variables"**: MCP 設定に `TIMETREE_EMAIL` と `TIMETREE_PASSWORD` を設定します。Claude Desktop 拡張機能の場合は、設定を開いて入力し直します。
 
-# Watch モード（変更時に自動リビルド）
-npm run dev
-```
+**ログインに失敗する**: 同じメールアドレスとパスワードで TimeTree Web アプリにログインできるか確認します。このサーバーはメールアドレスとパスワードでのログインのみ対応しています。
 
-### 制限事項
+**カレンダーや予定が表示されない**: アカウントにカレンダーがあるか確認し、クライアントの MCP ログを見てください。TimeTree の Web API が変わった可能性があるため、[Issue](https://github.com/ehs208/TimeTree-MCP/issues) で知らせてください。
 
-- **非公式 API**: TimeTree が内部 API を変更すると動作しなくなる可能性があります
-- **レート制限**: 1 秒あたり 10 リクエスト（429 エラー時は自動リトライ）
-- **公式サポートなし**: TimeTree はこのツールを公式にはサポートしていません
-- **CSRF トークンが必要**: 書き込み操作には CSRF トークンが必要です（TimeTree Web ページから自動抽出）
+## 仕組み
 
-### セキュリティ
+サーバーはメールアドレスとパスワードで TimeTree Web アプリにログインし、Web アプリと同じエンドポイントを呼び出します。セッションが切れると再ログインし、リクエストは毎秒 10 回までに制限して HTTP 429 では再試行します。予定の多いカレンダーもすべてのページを読み込みます。
 
-- 認証情報は**ローカル MCP 設定にのみ**保存されます
-- セッション Cookie はメモリにのみ保存されます（ディスクには永続化しません）
-- パスワードとセッション ID はログ内で自動的にマスクされます
-- すべての通信は HTTPS を使用します
-- 起動時に新しいバージョンを確認するため GitHub に 1 回リクエストを送ります。認証情報やカレンダーデータは送信しません
+書き込みリクエストには CSRF トークンが必要で、サーバーがログイン後に TimeTree の Web ページから取得します。
 
-### トラブルシューティング
+## コントリビュート
 
-#### "Missing required environment variables" エラー
+Issue と Pull Request を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
-MCP 設定で `TIMETREE_EMAIL` と `TIMETREE_PASSWORD` が設定されていることを確認してください。
+## クレジット
 
-#### 認証に失敗する
+[@eoleedi](https://github.com/eoleedi) による [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) の API に関する知見を参考にしています。
 
-- メールアドレスとパスワードが正しいことを確認してください
-- TimeTree Web アプリにログインできるか確認してください
-- TimeTree が認証 API を変更した可能性があります
+## ライセンス
 
-#### カレンダーやイベントが返らない
-
-- TimeTree アカウントにカレンダー/イベントが存在することを確認してください
-- 詳細なエラーメッセージはログを確認してください
-- API が変更された可能性があります
-
-### コントリビューション
-
-コントリビューションを歓迎します。基本的な流れは次のとおりです:
-
-1. リポジトリを fork
-2. 機能ブランチを作成
-3. 変更を実装
-4. Pull Request を送信
-
-### ライセンス
-
-MIT License - 詳細は [LICENSE](LICENSE) を参照してください。
-
-### プロジェクトを応援
-
-このプロジェクトが役に立った場合は、GitHub Star を付けていただけると嬉しいです。他のユーザーがこのプロジェクトを見つける助けになります。
-
-### 免責事項
-
-重要な法的情報と利用上の注意は [DISCLAIMER.md](DISCLAIMER.md) を参照してください。
-
----
-
-**TIMETREE, INC. とは提携していません**
-
-これは独立したコミュニティ管理プロジェクトです。
+MIT。[LICENSE](LICENSE) を参照してください。TimeTree, Inc. とは関係ありません。[DISCLAIMER.md](DISCLAIMER.md) を参照してください。
