@@ -31,16 +31,14 @@ function makeClient(http) {
   });
 }
 
-test('deleteEvent uses no-body DELETE first', async () => {
+test('deleteEvent checks the event exists, then uses a no-body DELETE', async () => {
   const calls = [];
   const client = makeClient({
     delete: async (url, body, _headers, requiresCsrf) => {
       calls.push({ url, body, requiresCsrf });
       return {};
     },
-    get: async () => {
-      throw new Error('sync fallback should not run after no-body delete succeeds');
-    },
+    get: async () => ({ event: makeEvent({ uuid: 'event-1' }) }),
   });
 
   await client.deleteEvent('cal-1', 'event-1');
@@ -51,7 +49,7 @@ test('deleteEvent uses no-body DELETE first', async () => {
   assert.equal(calls[0].requiresCsrf, true);
 });
 
-test('deleteEvent falls back to full-event-body DELETE on non-404 no-body failure', async () => {
+test('deleteEvent falls back to full-event-body DELETE when TimeTree rejects the no-body request', async () => {
   const calls = [];
   let deleteCount = 0;
   const targetEvent = makeEvent({ uuid: 'event-1', title: 'target' });

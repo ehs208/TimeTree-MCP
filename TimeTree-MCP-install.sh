@@ -188,12 +188,11 @@ EOF
 
 File: ~/.codex/config.toml
 
-[[mcp.servers]]
-name = "timetree"
+[mcp_servers.timetree]
 command = "$NODE_BIN"
 args = ["$DIST_PATH"]
 
-[mcp.servers.env]
+[mcp_servers.timetree.env]
 TIMETREE_EMAIL = "your-email@example.com"
 TIMETREE_PASSWORD = "your-password"
 

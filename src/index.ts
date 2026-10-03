@@ -17,9 +17,8 @@ import { TimeTreeAuthManager } from './client/auth.js';
 import { TimeTreeAPIClient } from './client/api.js';
 import { registerTools } from './tools/index.js';
 import { logger, summarizeToolArguments } from './utils/logger.js';
-
-// Version
-const VERSION = '0.3.0';
+import { SERVER_VERSION as VERSION } from './config/config.js';
+import { fetchNewerVersion, formatUpdateNotice } from './utils/update-check.js';
 
 /**
  * Validate required environment variables
@@ -84,6 +83,17 @@ async function main() {
   // Register tools
   const tools = registerTools(apiClient);
 
+  // Check for a newer version in the background; shown once in the next tool response.
+  let updateNotice: string | null = null;
+  if (process.env.TIMETREE_UPDATE_CHECK !== 'false') {
+    void fetchNewerVersion(VERSION).then((latest) => {
+      if (latest) {
+        logger.info('Update available', { current: VERSION, latest });
+        updateNotice = formatUpdateNotice(VERSION, latest);
+      }
+    });
+  }
+
   // Handle list_tools request
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
@@ -109,7 +119,13 @@ async function main() {
     }
 
     try {
-      return await tool.handler(args);
+      const result = await tool.handler(args);
+      if (!updateNotice) {
+        return result;
+      }
+      const notice = updateNotice;
+      updateNotice = null;
+      return { ...result, content: [...result.content, { type: 'text', text: notice }] };
     } catch (error) {
       logger.error('Tool execution failed', { name, error });
       throw error;

@@ -46,7 +46,7 @@ function formatEvent(event: Event) {
     label_color: event.label_id ? getLabelColorName(event.label_id) : null,
     location: event.location || null,
     note: event.note || null,
-    url: event.url || null,
+    url: event.attachment?.url || event.url || null,
     category: event.category || null,
     attendees: event.attendees || [],
     alerts: event.alerts || [],

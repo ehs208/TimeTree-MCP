@@ -79,6 +79,61 @@ function todayUtcMidnight(): number {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 }
 
+/**
+ * TimeTree reports most failures as HTTP 400/422 with an `error.code` in the body.
+ * Codes observed on the web API:
+ */
+const TIMETREE_ERROR = {
+  /** CSRF token missing or invalid (HTTP 422). */
+  CSRF_REJECTED: -1,
+  /** Event or other record not found (HTTP 400). */
+  RECORD_NOT_FOUND: -403,
+  /** Calendar not found or not accessible (HTTP 400). */
+  CALENDAR_NOT_FOUND: -425,
+  /** Session missing or no longer valid (HTTP 400). */
+  SESSION_REJECTED: -493,
+} as const;
+
+function getTimeTreeErrorCode(error: unknown): number | undefined {
+  try {
+    const body = JSON.parse(String((error as { response?: unknown }).response));
+    const code = body?.error?.code;
+    return typeof code === 'number' ? code : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isCalendarNotFound(error: unknown): boolean {
+  return getStatusCode(error) === 404 || getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND;
+}
+
+function isRecordNotFound(error: unknown): boolean {
+  return getStatusCode(error) === 404 || getTimeTreeErrorCode(error) === TIMETREE_ERROR.RECORD_NOT_FOUND;
+}
+
+function isCsrfRejected(error: unknown): boolean {
+  return getStatusCode(error) === 403 || getTimeTreeErrorCode(error) === TIMETREE_ERROR.CSRF_REJECTED;
+}
+
+/**
+ * A rejection of the request itself (not of the session, CSRF token, calendar, or event),
+ * e.g. an endpoint variant that requires a body.
+ */
+function isRequestShapeRejected(error: unknown): boolean {
+  const statusCode = getStatusCode(error);
+  if (statusCode !== 400 && statusCode !== 405 && statusCode !== 415) return false;
+  const code = getTimeTreeErrorCode(error);
+  return code === undefined || !Object.values(TIMETREE_ERROR).includes(code as never);
+}
+
+/** Signing in again fetches a fresh session and CSRF token, so either rejection is recoverable. */
+function needsReauthentication(error: unknown): boolean {
+  if (getStatusCode(error) === 401) return true;
+  const code = getTimeTreeErrorCode(error);
+  return code === TIMETREE_ERROR.SESSION_REJECTED || code === TIMETREE_ERROR.CSRF_REJECTED;
+}
+
 function createClientUuid(): string {
   return randomUUID().replace(/-/g, '');
 }
@@ -123,6 +178,7 @@ function existingAttachmentFields(event: Event): EventAttachmentInput {
 export class TimeTreeAPIClient {
   private authManager: TimeTreeAuthManager;
   private rateLimiter: RateLimiter;
+  private pendingAuth?: Promise<void>;
 
   constructor(authManager: TimeTreeAuthManager) {
     this.authManager = authManager;
@@ -134,7 +190,34 @@ export class TimeTreeAPIClient {
   /** Ensure we're authenticated before making API calls. */
   private async ensureAuthenticated(): Promise<void> {
     if (!this.authManager.isAuthenticated()) {
-      await this.authManager.authenticate();
+      await this.authenticate();
+    }
+  }
+
+  /** Sign in, sharing one in-flight login between concurrent callers. */
+  private authenticate(): Promise<void> {
+    this.pendingAuth ??= this.authManager.authenticate().finally(() => {
+      this.pendingAuth = undefined;
+    });
+    return this.pendingAuth;
+  }
+
+  /**
+   * Run a TimeTree request through the rate limiter. When the server no longer accepts
+   * the session (expiry, sign-out elsewhere) or the CSRF token while they are still in
+   * memory, sign in again and retry once. Rejected requests were not applied, so the
+   * retry is safe for writes too.
+   */
+  private async send<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await this.rateLimiter.executeWithRetry(fn);
+    } catch (error) {
+      if (!needsReauthentication(error)) {
+        throw error;
+      }
+      logger.warn('Session or CSRF token rejected by TimeTree; signing in again');
+      await this.authenticate();
+      return this.rateLimiter.executeWithRetry(fn);
     }
   }
 
@@ -147,7 +230,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDARS}?since=0`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .get<CalendarsResponse>(url);
@@ -172,43 +255,47 @@ export class TimeTreeAPIClient {
     }
   }
 
-  /** Recursively sync events from a calendar with automatic pagination. */
-  private async syncEvents(
-    calendarId: string,
-    since: number = 0,
-    accumulated: Event[] = []
+  /**
+   * Fetch every page of an event feed. TimeTree splits large responses into chunks: while
+   * `chunk` is true, the returned `since` is the cursor for the next page.
+   */
+  private async fetchEventPages(
+    buildUrl: (since: number) => string,
+    since: number
   ): Promise<Event[]> {
-    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENTS_SYNC(
-      calendarId
-    )}?since=${since}`;
+    const events: Event[] = [];
+    let cursor = since;
 
-    logger.debug('Syncing events', { calendarId, since, accumulated: accumulated.length });
-
-    try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
-        return await this.authManager
-          .getHttpClient()
-          .get<EventsSyncResponse>(url);
+    for (;;) {
+      const response = await this.send(async () => {
+        return await this.authManager.getHttpClient().get<EventsSyncResponse>(buildUrl(cursor));
       });
 
       const validated = EventsSyncResponseSchema.parse(response);
-      accumulated.push(...validated.events);
+      events.push(...validated.events);
 
-      if (validated.chunk && validated.since > since) {
-        logger.debug('More events to fetch', {
-          nextSince: validated.since,
-          fetchedSoFar: accumulated.length,
-        });
-        return this.syncEvents(calendarId, validated.since, accumulated);
+      if (!validated.chunk || validated.since <= cursor) {
+        return events;
       }
+      logger.debug('More events to fetch', { nextSince: validated.since, fetchedSoFar: events.length });
+      cursor = validated.since;
+    }
+  }
 
-      logger.debug('Event sync complete', {
-        total: accumulated.length,
-      });
+  /** Sync all active events from a calendar with automatic pagination. */
+  private async syncEvents(calendarId: string, since: number = 0): Promise<Event[]> {
+    logger.debug('Syncing events', { calendarId, since });
 
-      return accumulated;
+    try {
+      const events = await this.fetchEventPages(
+        (cursor) =>
+          `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENTS_SYNC(calendarId)}?since=${cursor}`,
+        since
+      );
+      logger.debug('Event sync complete', { total: events.length });
+      return events;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
 
@@ -250,17 +337,17 @@ export class TimeTreeAPIClient {
 
     logger.info('Fetching updated events for calendar', { calendarId, updatedAfter });
 
-    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENTS(calendarId)}?since=${updatedAfter}`;
-
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
-        return await this.authManager
-          .getHttpClient()
-          .get<EventsSyncResponse>(url);
-      });
+      // The events feed includes deleted events (with deactivated_at). Its `since` cursor
+      // has been observed to be a millisecond timestamp, so starting from updatedAfter only
+      // skips older pages; the updated_at filter below decides what is returned.
+      const events = await this.fetchEventPages(
+        (cursor) =>
+          `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENTS(calendarId)}?since=${cursor}`,
+        updatedAfter
+      );
 
-      const validated = EventsSyncResponseSchema.parse(response);
-      const updatedEvents = validated.events.filter(
+      const updatedEvents = events.filter(
         (event) => event.updated_at && event.updated_at > updatedAfter
       );
 
@@ -271,7 +358,7 @@ export class TimeTreeAPIClient {
 
       return updatedEvents;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
 
@@ -299,7 +386,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_LABELS(calendarId)}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .get<CalendarLabelsResponse>(url);
@@ -308,7 +395,7 @@ export class TimeTreeAPIClient {
       const validated = CalendarLabelsResponseSchema.parse(response);
       return validated.calendar_labels;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
       logger.error('Failed to fetch calendar labels', { calendarId, error });
@@ -330,12 +417,12 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.LATEST_EVENT_ACTIVITIES}?${params}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager.getHttpClient().get<LatestActivitiesResponse>(url);
       });
       return LatestActivitiesResponseSchema.parse(response).events;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarIds.join(','));
       }
       logger.error('Failed to fetch latest event activities', { calendarIds, error });
@@ -357,7 +444,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.V2_BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.MEMORIAL_DAYS}?${params}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager.getHttpClient().get<MemorialDaysResponse>(url);
       });
       return MemorialDaysResponseSchema.parse(response).memorialdays.filter((day) => !day.deactivated_at);
@@ -414,7 +501,7 @@ export class TimeTreeAPIClient {
     const body = { calendar_labels: mergedLabels };
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .put<CalendarLabelsResponse>(url, body, undefined, true);
@@ -423,10 +510,10 @@ export class TimeTreeAPIClient {
       const parsed = CalendarLabelsResponseSchema.safeParse(response);
       return parsed.success ? parsed.data.calendar_labels : this.getCalendarLabels(calendarId);
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
       logger.error('Failed to update calendar labels', { calendarId, error });
@@ -444,7 +531,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.V2_BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_MEMBERS_V2(calendarId)}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .get<CalendarUsersResponse>(url);
@@ -453,7 +540,7 @@ export class TimeTreeAPIClient {
       const validated = CalendarUsersResponseSchema.parse(response);
       return validated.calendar_users;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
       logger.error('Failed to fetch calendar members', { calendarId, error });
@@ -470,7 +557,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_VIRTUAL_USERS(calendarId)}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .get<CalendarVirtualUsersResponse>(url);
@@ -479,7 +566,7 @@ export class TimeTreeAPIClient {
       const validated = CalendarVirtualUsersResponseSchema.parse(response);
       return validated.calendar_virtual_users;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
       logger.error('Failed to fetch calendar virtual users', { calendarId, error });
@@ -504,7 +591,7 @@ export class TimeTreeAPIClient {
     const body = { ...rest, attachment: toAttachmentPayload(rest.attachment, eventUrl) };
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .post<CreateEventResponse>(url, body, undefined, true);
@@ -519,11 +606,11 @@ export class TimeTreeAPIClient {
 
       return validated.event;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (isCalendarNotFound(error)) {
         throw new InvalidCalendarError(calendarId);
       }
 
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         logger.error('CSRF token missing or invalid', { error });
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
@@ -563,7 +650,7 @@ export class TimeTreeAPIClient {
         );
       }
 
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .put<UpdateEventResponse>(url, body, undefined, true);
@@ -578,11 +665,15 @@ export class TimeTreeAPIClient {
 
       return validated.event;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
       }
 
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         logger.error('CSRF token missing or invalid', { error });
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
@@ -602,24 +693,18 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENT(calendarId, eventUuid)}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager.getHttpClient().get<CreateEventResponse>(url);
       });
       return CreateEventResponseSchema.parse(response).event;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
       }
-      throw error;
-    }
-  }
-
-  /** Fetch a single event by UUID, or null when it does not exist. */
-  private async getEventByUuid(calendarId: string, eventUuid: string): Promise<Event | null> {
-    try {
-      return await this.getEvent(calendarId, eventUuid);
-    } catch (error) {
-      if (getStatusCode(error) === 404) return null;
       throw error;
     }
   }
@@ -627,70 +712,57 @@ export class TimeTreeAPIClient {
   /**
    * Delete an event from a calendar.
    *
-   * The current web API accepts a no-body DELETE. If an older/variant endpoint rejects
-   * that shape, fall back to the previously observed full-event-body DELETE.
+   * TimeTree answers a DELETE for a missing event with success, so the event is fetched
+   * first to report "not found" correctly.
    */
   async deleteEvent(calendarId: string, eventUuid: string): Promise<void> {
-    await this.ensureAuthenticated();
+    const target = await this.getEvent(calendarId, eventUuid);
+    await this.deleteFetchedEvent(calendarId, target);
+  }
 
+  /**
+   * The current web API accepts a no-body DELETE. Only when TimeTree rejects that request
+   * shape does this fall back to the previously observed full-event-body DELETE; timeouts,
+   * network and server errors are reported as-is, since the first DELETE may have applied.
+   */
+  private async deleteFetchedEvent(calendarId: string, target: Event): Promise<void> {
+    const eventUuid = target.uuid;
     logger.info('Deleting event', { calendarId, eventUuid });
 
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.DELETE_EVENT(
       calendarId,
       eventUuid
     )}`;
-
-    try {
-      await this.rateLimiter.executeWithRetry(async () => {
-        return await this.authManager
-          .getHttpClient()
-          .delete(url, undefined, undefined, true);
+    const deleteWith = (body?: Event) =>
+      this.send(async () => {
+        return await this.authManager.getHttpClient().delete(url, body, undefined, true);
       });
 
+    try {
+      try {
+        await deleteWith();
+      } catch (error) {
+        if (!isRequestShapeRejected(error)) {
+          throw error;
+        }
+        logger.debug('No-body event delete rejected; retrying with full event body', {
+          calendarId,
+          eventUuid,
+          statusCode: getStatusCode(error),
+        });
+        await deleteWith(target);
+      }
       logger.info('Event deleted successfully', { calendarId, eventUuid });
-      return;
     } catch (error) {
-      const statusCode = getStatusCode(error);
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
 
-      if (statusCode === 404) {
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
       }
 
-      if (statusCode === 403) {
-        throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
-      }
-
-      logger.debug('No-body event delete failed; retrying with full event body', {
-        calendarId,
-        eventUuid,
-        statusCode,
-      });
-    }
-
-    try {
-      const targetEvent = await this.getEventByUuid(calendarId, eventUuid);
-
-      if (!targetEvent) {
-        throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
-      }
-
-      await this.rateLimiter.executeWithRetry(async () => {
-        return await this.authManager
-          .getHttpClient()
-          .delete(url, targetEvent, undefined, true);
-      });
-
-      logger.info('Event deleted successfully after fallback', { calendarId, eventUuid });
-    } catch (error) {
-      if (error instanceof TimeTreeAPIError) {
-        throw error;
-      }
-
-      if (getStatusCode(error) === 404) {
-        throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
-      }
-
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
 
@@ -756,6 +828,7 @@ export class TimeTreeAPIClient {
         }
       : undefined;
 
+    await this.getMemo(calendarId, memoUuid);
     return this.updateEvent(calendarId, memoUuid, {
       title: memoData.title,
       label_id: memoData.label_id,
@@ -768,7 +841,20 @@ export class TimeTreeAPIClient {
   }
 
   async deleteMemo(calendarId: string, memoUuid: string): Promise<void> {
-    await this.deleteEvent(calendarId, memoUuid);
+    const memo = await this.getMemo(calendarId, memoUuid);
+    await this.deleteFetchedEvent(calendarId, memo);
+  }
+
+  /** Memo tools must not touch regular events: updateMemo would turn them into memos. */
+  private async getMemo(calendarId: string, uuid: string): Promise<Event> {
+    const event = await this.getEvent(calendarId, uuid);
+    if (event.category !== 2) {
+      throw new TimeTreeAPIError(
+        `${uuid} is a regular event, not a memo. Use update_event or delete_event instead.`,
+        400
+      );
+    }
+    return event;
   }
 
   // ============================================================================
@@ -793,7 +879,7 @@ export class TimeTreeAPIClient {
     };
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .post<EventActivityResponse>(url, body, undefined, true);
@@ -802,10 +888,14 @@ export class TimeTreeAPIClient {
       const validated = EventActivityResponseSchema.parse(response);
       return validated.event_activity;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
       }
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
       logger.error('Failed to add event comment', { calendarId, eventUuid, error });
@@ -824,7 +914,7 @@ export class TimeTreeAPIClient {
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.EVENT_ACTIVITIES(calendarId, eventUuid)}`;
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .get<EventActivitiesResponse>(url);
@@ -835,7 +925,11 @@ export class TimeTreeAPIClient {
         (activity) => activity.type === 0 && !activity.deactivated_at
       );
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Event not found: ${eventUuid}`, 404);
       }
       logger.error('Failed to list event comments', { calendarId, eventUuid, error });
@@ -864,7 +958,7 @@ export class TimeTreeAPIClient {
     const body = { attachment: { content } };
 
     try {
-      const response = await this.rateLimiter.executeWithRetry(async () => {
+      const response = await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .put<EventActivityResponse>(url, body, undefined, true);
@@ -873,10 +967,14 @@ export class TimeTreeAPIClient {
       const validated = EventActivityResponseSchema.parse(response);
       return validated.event_activity;
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Comment not found: ${commentId}`, 404);
       }
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
       logger.error('Failed to update event comment', { calendarId, eventUuid, commentId, error });
@@ -903,16 +1001,20 @@ export class TimeTreeAPIClient {
     )}`;
 
     try {
-      await this.rateLimiter.executeWithRetry(async () => {
+      await this.send(async () => {
         return await this.authManager
           .getHttpClient()
           .delete(url, undefined, undefined, true);
       });
     } catch (error) {
-      if (getStatusCode(error) === 404) {
+      if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+        throw new InvalidCalendarError(calendarId);
+      }
+
+      if (isRecordNotFound(error)) {
         throw new TimeTreeAPIError(`Comment not found: ${commentId}`, 404);
       }
-      if (getStatusCode(error) === 403) {
+      if (isCsrfRejected(error)) {
         throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
       }
       logger.error('Failed to delete event comment', { calendarId, eventUuid, commentId, error });

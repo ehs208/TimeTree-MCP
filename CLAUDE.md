@@ -107,7 +107,7 @@ When testing manually with a real account, keep credentials only in the shell or
 
 Before a release-oriented commit:
 
-1. Confirm `package.json` and `package-lock.json` versions match.
+1. Confirm `package.json`, `package-lock.json`, and `SERVER_VERSION` in `src/config/config.ts` versions match. Users install from `main` and get an update notice when its version is newer, so bump the version only when the change should reach users.
 2. Confirm `package.json` still has `"private": true`.
 3. Run `npm run typecheck`, `npm test`, and `npm run build` when code changed.
 4. Check that docs do not contain personal paths, credentials, copied calendar data, or private session material.

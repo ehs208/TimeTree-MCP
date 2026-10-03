@@ -22,7 +22,7 @@ Use Claude, Codex, Cursor, Windsurf, and other MCP clients to read and manage yo
 - 🏷️ **Calendar Metadata** - Read/update labels and inspect members/virtual members
 - 🎌 **Holidays** - Look up public holidays by country and date range
 - 🕘 **Recent Activity** - See who created, changed, or deleted events and memos
-- 🔐 **Secure Authentication** - Email/password authentication (stored only in MCP config)
+- 🔐 **Secure Authentication** - Email/password authentication (stored only in MCP config); signs in again automatically when the session expires
 - ⚡ **Rate Limiting** - Token bucket algorithm to prevent API overload
 - 🔄 **Auto Pagination** - Automatically fetches all events across multiple pages
 - 🛡️ **Error Handling** - Comprehensive error handling with user-friendly messages
@@ -114,6 +114,8 @@ npm run build
 
 Then restart your MCP client.
 
+When a newer version is on `main`, the server adds a one-time notice to a tool response so your AI assistant can tell you. Set `TIMETREE_UPDATE_CHECK=false` in the MCP `env` to turn this off.
+
 📖 **For detailed update instructions and troubleshooting:**
 → See **[docs/UPDATING.md](docs/UPDATING.md)**
 
@@ -161,6 +163,7 @@ npm run dev
 - Session cookies are stored in memory only (never persisted to disk)
 - Passwords and session IDs are automatically masked in logs
 - All communication uses HTTPS
+- On startup, the server makes one request to GitHub to check for a newer version; no credentials or calendar data are sent
 
 ### Troubleshooting
 

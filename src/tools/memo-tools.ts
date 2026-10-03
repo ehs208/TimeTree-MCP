@@ -69,7 +69,7 @@ function formatMemo(memo: Event) {
     label_color: memo.label_id ? getLabelColorName(memo.label_id) : null,
     note: memo.note || null,
     location: memo.location || null,
-    url: memo.url || null,
+    url: memo.attachment?.url || memo.url || null,
     checklist: memo.attachment?.checklist || [],
     virtual_user_attendees: memo.attachment?.virtual_user_attendees || [],
     created_at: memo.created_at ? new Date(memo.created_at).toISOString() : null,

@@ -18,6 +18,12 @@ All clients use the same basic configuration format:
 
 > Replace `/absolute/path/to/TimeTree-MCP` with your cloned repository path. If your GUI client cannot find `node`, use the absolute path from `command -v node` as `command`. `npm link` is optional convenience, not required for this configuration.
 
+### Optional settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TIMETREE_UPDATE_CHECK` | `true` | Set to `false` to skip the startup check for a newer version (see [UPDATING.md](UPDATING.md#update-notifications)) |
+
 ## Supported Clients
 
 <details>
@@ -73,12 +79,11 @@ claude mcp add timetree \
 **File:** `~/.codex/config.toml` (or `.codex/config.toml` for project-specific)
 
 ```toml
-[[mcp.servers]]
-name = "timetree"
+[mcp_servers.timetree]
 command = "node"
 args = ["/absolute/path/to/TimeTree-MCP/dist/index.js"]
 
-[mcp.servers.env]
+[mcp_servers.timetree.env]
 TIMETREE_EMAIL = "your-email@example.com"
 TIMETREE_PASSWORD = "your-password"
 ```
@@ -170,6 +175,6 @@ Most MCP clients support this standard format:
 
 ## Need Help?
 
-- Check [TROUBLESHOOTING.md](../README.md#troubleshooting) for common issues
+- Check the [Troubleshooting](../README.md#troubleshooting) section of the README for common issues
 - See [README.md](../README.md) for general documentation
 - Report issues at https://github.com/ehs208/TimeTree-MCP/issues

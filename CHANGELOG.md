@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `start_before`, `query`, `label_id`, and `include_memos` filters to `get_events`.
 - `get_events` expands recurring events into their occurrences when `start_before` is set (`expand_recurring`, default on). EXDATE exceptions are honored.
 - Added `get_recent_activity` for the calendar's recent change feed with member names.
+- The server checks `main` for a newer version on startup and adds a one-time update notice to the next tool response. Set `TIMETREE_UPDATE_CHECK=false` to disable.
+- `get_updated_events` marks deleted events with `deleted` and `deleted_at`.
 
 ### Changed
 - Node.js 22 or later is now required. Node.js 18 and 20 are past end-of-life; CI tests Node.js 22 and 24.
@@ -22,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event and memo URLs are now saved. TimeTree stores them in the attachment, so the top-level `url` was previously ignored.
 - Clearing a checklist with `checklist: []` no longer fails with HTTP 400.
 - Updating only the URL or only the checklist no longer drops the other attachment field.
+- The server signs in again when TimeTree rejects an expired session or CSRF token, instead of failing every call until restart. Concurrent first calls now share one sign-in.
+- Unknown calendars, missing events, and rejected CSRF tokens now return the matching error messages. TimeTree reports these as HTTP 400/422 with error codes, which were previously shown as generic failures.
+- Event and memo responses now include the saved URL instead of `null`.
+- `get_updated_events` now fetches every page when TimeTree splits the response.
+- `delete_event` and `delete_memo` report a missing event as not found; TimeTree answers such deletes with success. A delete is no longer sent twice after a timeout or server error.
+- Event, memo, comment, and calendar IDs are validated before they are used in request paths, so a crafted ID cannot redirect a request to another endpoint.
+- `update_memo` and `delete_memo` refuse regular events instead of converting them into memos or deleting them.
+- Fixed the Codex `config.toml` example in the docs and installer output (`[mcp_servers.timetree]`).
+- Docs no longer refer to GitHub releases; changes are tracked in this changelog and installed from `main`.
+- Added a Japanese section to DISCLAIMER.md.
 
 ## [0.3.0] - 2026-05-25
 

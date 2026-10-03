@@ -19,7 +19,7 @@ Before creating a bug report:
 3. Test with different credentials/calendars to isolate the issue
 
 When reporting a bug, include:
-- MCP server version (`npm run build` output)
+- MCP server version (`version` in `package.json`)
 - Node.js version (`node --version`)
 - Operating system
 - Steps to reproduce
@@ -73,7 +73,7 @@ Feature suggestions are welcome, but keep in mind:
 ```bash
 git clone https://github.com/ehs208/TimeTree-MCP.git
 cd TimeTree-MCP
-npm install
+npm ci
 npm run build
 ```
 
@@ -95,7 +95,8 @@ TimeTree-MCP/
 │   │   ├── logger.ts             # Structured logging (stderr only)
 │   │   ├── http-client.ts        # HTTP wrapper (native fetch)
 │   │   ├── rate-limiter.ts       # Token bucket rate limiter
-│   │   └── recurrence.ts         # RRULE/EXDATE expansion for get_events
+│   │   ├── recurrence.ts         # RRULE/EXDATE expansion for get_events
+│   │   └── update-check.ts       # Startup check for a newer version
 │   ├── client/
 │   │   ├── auth.ts               # Authentication + CSRF token manager
 │   │   └── api.ts                # TimeTree API client (read + CRUD)
@@ -192,11 +193,12 @@ When adding features:
 
 ## Release Process
 
+Users install from the `main` branch, and there are no GitHub releases or npm publishes. A version bump on `main` is the release: running servers compare their version with `package.json` on `main` and show an update notice when it is newer.
+
 Maintainers will:
-1. Update version in `package.json`
-2. Update CHANGELOG.md
-3. Create a git tag (`v0.x.x`)
-4. Create a GitHub release
+1. Update `version` in `package.json` and `package-lock.json`, and `SERVER_VERSION` in `src/config/config.ts` (a test checks they match)
+2. Move the `[Unreleased]` entries in CHANGELOG.md under the new version with the date
+3. Merge to `main`
 
 ## Questions?
 

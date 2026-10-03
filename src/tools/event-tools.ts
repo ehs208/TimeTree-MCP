@@ -181,7 +181,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           location_lat: event.location_lat || null,
           location_lon: event.location_lon || null,
           note: event.note || null,
-          url: event.url || null,
+          url: event.attachment?.url || event.url || null,
           category: event.category || null,
           type: event.type || null,
           created_at: event.created_at ? new Date(event.created_at).toISOString() : null,
@@ -289,7 +289,8 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
     name: 'get_updated_events',
     description:
       'Get events from a specific TimeTree calendar that were updated after a specified time. ' +
-      'Useful for finding recently modified events. Returns event details including title, start/end times, ' +
+      'Useful for finding recently modified events. Deleted events are included with deleted: true. ' +
+      'Returns event details including title, start/end times, ' +
       'location, notes, label color, and more. ' +
       'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
       '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
@@ -341,7 +342,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
           location_lat: event.location_lat || null,
           location_lon: event.location_lon || null,
           note: event.note || null,
-          url: event.url || null,
+          url: event.attachment?.url || event.url || null,
           category: event.category || null,
           type: event.type || null,
           created_at: event.created_at ? new Date(event.created_at).toISOString() : null,
@@ -353,6 +354,8 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
           has_recurrence: event.recurrences && event.recurrences.length > 0,
           checklist: event.attachment?.checklist || null,
           virtual_user_attendees: event.attachment?.virtual_user_attendees || [],
+          deleted: !!event.deactivated_at,
+          deleted_at: event.deactivated_at ? new Date(event.deactivated_at).toISOString() : null,
         }));
 
         const result = {
