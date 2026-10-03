@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-03
+
 ### Added
 - Claude Desktop extension (`.mcpb`) for macOS and Windows: download it from GitHub releases and open it to install. Claude Desktop asks for the TimeTree email and password, so no clone, build, or config file is needed. Nothing is published to npm.
 - GitHub releases: each version tag gets a release with the extension attached and the changelog section as release notes.

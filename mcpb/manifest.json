@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "timetree-mcp",
   "display_name": "TimeTree (Unofficial)",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Read and manage your TimeTree calendars, events, memos, and comments from Claude.",
   "long_description": "Ask Claude about your TimeTree calendars: summarize this week's schedule, find conflicts, search past events, add or change events and memos, and see who changed what.\n\n**Unofficial.** This extension is not affiliated with, endorsed by, or supported by TimeTree, Inc. It uses the TimeTree web app's undocumented endpoints, which may change or stop working at any time. Use it with your own personal account only.\n\nYour email and password are sent only to TimeTree to sign in. The session stays in memory and is never written to disk by this extension.",
   "author": {

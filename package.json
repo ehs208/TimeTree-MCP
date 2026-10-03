@@ -1,6 +1,6 @@
 {
   "name": "timetree-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Unofficial TimeTree MCP Server for personal use - access and manage TimeTree calendar data with MCP-compatible AI clients",
   "private": true,
   "type": "module",
