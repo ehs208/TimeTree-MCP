@@ -117,7 +117,7 @@ When testing manually with a real account, keep credentials only in the shell or
 - Keep client setup details in `docs/MCP_CLIENTS.md` and update the installer output when setup instructions change.
 - README first screen order: title and one-line value, badges, language links, short unofficial notice, example prompts, demo image, then "What it does" in user terms. Implementation details (rate limiting, logging, CSRF) belong in "How it works", not in the feature list.
 - Write user-facing copy plainly: no emoji section markers, no hype words, and only claims the project can back up. Example prompts and the demo image use made-up data.
-- Edit images as SVG in `docs/assets/` and re-render the PNGs (`rsvg-convert`). The demo GIFs are screen recordings of Claude Desktop against a test calendar with made-up events; keep personal names out of frame and each GIF under a few MB. `mcpb/icon.png` is rendered from `docs/assets/icon.svg` at 512x512.
+- Edit images as SVG in `docs/assets/` and re-render the PNGs (`rsvg-convert`). The demo GIFs are screen recordings of Claude Desktop against a test calendar with made-up events; remove personal names from every frame (cover them, do not blur) and keep each GIF under a few MB. `mcpb/icon.png` is rendered from `docs/assets/icon.svg` at 512x512.
 - Keep shell script output in English unless maintainers decide otherwise.
 - Use generic placeholders such as `your-email@example.com`, `your-password`, and `/absolute/path/to/...`.
 - Avoid contributor-facing text that depends on a maintainer's local environment.
@@ -157,6 +157,7 @@ This is primarily a project guide, not a full contribution handbook. For contrib
 - Do not add dependencies unless the benefit is clear and documented.
 - Make privacy-preserving behavior the default.
 - When uncertain about upstream behavior, document the observation method without storing sensitive captures.
+- After opening a pull request, wait for the Codex review (`chatgpt-codex-connector`), which usually lands within a few minutes. Address or answer each finding, then comment `@codex review` after pushing fixes and check the new review before asking for a merge.
 
 ## Code Review Rules
 
