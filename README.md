@@ -30,7 +30,7 @@ Ask your AI assistant things like:
 - "Who changed the calendar today, and what did they change?"
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="An assistant reads this week's events through TimeTree MCP and points out a Saturday conflict" width="760">
+  <img src="docs/assets/demo-en.gif" alt="Claude Desktop summarizes a week on a TimeTree calendar, flags a conflict, then moves an event and adds a new one" width="760">
 </p>
 
 ## What it does

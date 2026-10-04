@@ -46,7 +46,7 @@ Write operations depend on TimeTree web authentication and CSRF handling. Keep e
 - `scripts/build-mcpb.mjs` - Bundles the server and all dependencies into one file and packs `build/timetree-mcp-<version>.mcpb`.
 - `scripts/mcpb-packer/` - The MCPB packer locked with its own `package-lock.json`, installed only when building the extension. It is kept out of the main `package.json` so its dev-only advisories do not fail the server's `npm audit`. Update it on purpose, not through the main lockfile.
 - `.github/workflows/release.yml` - On a `v*` tag, tests, builds the `.mcpb`, and creates the GitHub release.
-- `docs/assets/` - Icon, README demo image, and GitHub social preview (SVG sources plus rendered PNGs).
+- `docs/assets/` - Icon and GitHub social preview (SVG sources plus rendered PNGs), and the README demo GIFs (`demo-en.gif`, `demo-ko.gif`, `demo-ja.gif`).
 
 Prefer small changes that follow these boundaries instead of adding new layers or dependencies.
 
@@ -117,7 +117,7 @@ When testing manually with a real account, keep credentials only in the shell or
 - Keep client setup details in `docs/MCP_CLIENTS.md` and update the installer output when setup instructions change.
 - README first screen order: title and one-line value, badges, language links, short unofficial notice, example prompts, demo image, then "What it does" in user terms. Implementation details (rate limiting, logging, CSRF) belong in "How it works", not in the feature list.
 - Write user-facing copy plainly: no emoji section markers, no hype words, and only claims the project can back up. Example prompts and the demo image use made-up data.
-- Edit images as SVG in `docs/assets/` and re-render the PNGs (`rsvg-convert`). `mcpb/icon.png` is rendered from `docs/assets/icon.svg` at 512x512.
+- Edit images as SVG in `docs/assets/` and re-render the PNGs (`rsvg-convert`). The demo GIFs are screen recordings of Claude Desktop against a test calendar with made-up events; keep personal names out of frame and each GIF under a few MB. `mcpb/icon.png` is rendered from `docs/assets/icon.svg` at 512x512.
 - Keep shell script output in English unless maintainers decide otherwise.
 - Use generic placeholders such as `your-email@example.com`, `your-password`, and `/absolute/path/to/...`.
 - Avoid contributor-facing text that depends on a maintainer's local environment.

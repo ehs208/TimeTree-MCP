@@ -30,7 +30,7 @@ AI アシスタントに次のように聞くだけです。
 - 「今日カレンダーを変更したのは誰？何を変えた？」
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="アシスタントが TimeTree MCP で今週の予定を読み、土曜日の予定の重なりを指摘する例" width="760">
+  <img src="docs/assets/demo-ja.gif" alt="Claude Desktop が TimeTree カレンダーの1週間の予定をまとめて重なりを指摘し、予定の移動と追加を行う例" width="760">
 </p>
 
 ## できること

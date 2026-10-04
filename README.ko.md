@@ -30,7 +30,7 @@ AI 어시스턴트에게 이렇게 물어보면 됩니다.
 - "오늘 누가 캘린더에서 뭘 바꿨어?"
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="어시스턴트가 TimeTree MCP로 이번 주 일정을 읽고 토요일 일정 충돌을 알려주는 예시" width="760">
+  <img src="docs/assets/demo-ko.gif" alt="Claude Desktop이 TimeTree 캘린더의 한 주 일정을 정리하고 겹치는 일정을 알려준 뒤, 일정을 옮기고 새 일정을 추가하는 예시" width="760">
 </p>
 
 ## 할 수 있는 일
