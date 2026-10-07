@@ -32,6 +32,7 @@
   },
   "tools": [
     { "name": "list_calendars", "description": "List your TimeTree calendars." },
+    { "name": "create_calendar", "description": "Create a calendar with an explicit name and purpose, without inviting members." },
     { "name": "get_events", "description": "Read events with date, keyword, and label filters; expands recurring events." },
     { "name": "get_updated_events", "description": "Find events changed after a point in time." },
     { "name": "create_event", "description": "Create an event." },

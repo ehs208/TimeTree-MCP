@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `create_calendar` without member invitations, requiring an explicit name and purpose. Uses existing rate limiting and authentication recovery without retrying timeouts or server errors.
+- Calendar creation distinguishes invalid fields and authentication failures without forwarding upstream details.
+
+### Fixed
+- Calendar creation treats invalid success responses as uncertain outcomes instead of invalid user input, and reports persistent TimeTree session or CSRF rejections as authentication failures.
+- Authentication recovery no longer retries HTTP 5xx responses, even when their bodies contain session or CSRF error codes.
+
+### Security
+- Updated locked MCP SDK and proxy-addr dependencies to resolve high and critical audit findings.
+
 ## [0.4.0] - 2026-10-03
 
 ### Added

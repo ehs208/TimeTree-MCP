@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import { TIMETREE_CONFIG } from '../config/config.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 import { logger } from '../utils/logger.js';
-import { TimeTreeAuthManager } from './auth.js';
+import { AuthenticationError, TimeTreeAuthManager } from './auth.js';
 import type {
   Calendar,
   CalendarLabel,
@@ -36,6 +36,7 @@ import type {
 } from '../types/timetree.js';
 import {
   CalendarLabelsResponseSchema,
+  CalendarSchema,
   CalendarUsersResponseSchema,
   CalendarVirtualUsersResponseSchema,
   CalendarsResponseSchema,
@@ -129,7 +130,10 @@ function isRequestShapeRejected(error: unknown): boolean {
 
 /** Signing in again fetches a fresh session and CSRF token, so either rejection is recoverable. */
 function needsReauthentication(error: unknown): boolean {
-  if (getStatusCode(error) === 401) return true;
+  const statusCode = getStatusCode(error);
+  // A server error leaves write outcomes uncertain, even when its body contains an auth code.
+  if (statusCode !== undefined && statusCode >= 500) return false;
+  if (statusCode === 401) return true;
   const code = getTimeTreeErrorCode(error);
   return code === TIMETREE_ERROR.SESSION_REJECTED || code === TIMETREE_ERROR.CSRF_REJECTED;
 }
@@ -255,6 +259,33 @@ export class TimeTreeAPIClient {
       throw new TimeTreeAPIError(
         `Failed to fetch calendars: ${getErrorMessage(error)}`
       );
+    }
+  }
+
+  /** Create a calendar without invitations. Rate limited; timeouts and server errors are not retried. */
+  async createCalendar(name: string, purpose: string): Promise<Calendar> {
+    if (!name.trim() || name.trim().length > 20) {
+      throw new TimeTreeAPIError('Calendar name must contain 1 to 20 characters', 400);
+    }
+    await this.ensureAuthenticated();
+    // Precondition check: writes require a CSRF token before sending the request.
+    this.authManager.getCsrfToken();
+    try {
+      const response = await this.send(() =>
+        this.authManager.getHttpClient().post<{ calendar: unknown }>(
+          `${TIMETREE_CONFIG.V2_BASE_URL}/calendars`,
+          { name: name.trim(), purpose }, undefined, true
+        )
+      );
+      return CalendarSchema.parse(response.calendar);
+    } catch (error) {
+      if (getStatusCode(error) === 403) {
+        throw new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
+      }
+      if (needsReauthentication(error)) {
+        throw new AuthenticationError('Session or CSRF token rejected after re-authentication', getStatusCode(error));
+      }
+      throw error;
     }
   }
 

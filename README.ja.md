@@ -113,12 +113,15 @@ GUI クライアントが `node` を見つけられない場合は、`command -v
 
 | 分類 | ツール |
 |---|---|
-| カレンダー | `list_calendars` |
+| カレンダー | `list_calendars`, `create_calendar` |
 | 予定 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
 | メモ | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
 | コメント | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
 | ラベルとメンバー | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members` |
 | その他 | `get_holidays`, `get_recent_activity` |
+
+`create_calendar` は名前（1〜20文字）と用途の明示を必須とします。メンバー招待は行わず、タイムアウト・サーバーエラーでは再試行しません。
+作成後の応答を検証できない場合は、再実行前に既存のカレンダーを確認してください。
 
 パラメータと使用例: [COMMANDS.md](COMMANDS.md)
 

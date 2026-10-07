@@ -40,6 +40,7 @@ test('registerTools exposes baseline plus Wave 1 tools', () => {
 
   assert.deepEqual(names, [
     'add_event_comment',
+    'create_calendar',
     'create_event',
     'create_memo',
     'delete_event',
@@ -345,4 +346,90 @@ test('get_recent_activity names status codes, joins member names, and filters by
     ['evt-1', 'event', false],
     ['memo-1', 'memo', true],
   ]);
+});
+
+test('create_calendar requires explicit purpose and returns only documented fields', async () => {
+  const {createCreateCalendarTool} = await import('../.test-dist/tools/calendar-tools.js');
+  const calls = [];
+  const tool = createCreateCalendarTool({createCalendar: async (...args) => {
+    calls.push(args); return {id: 123, name: 'Sample', alias_code: 'sample', extra: 'hidden'};
+  }});
+  assert.deepEqual(tool.inputSchema.required, ['name', 'purpose']);
+  assert.equal('default' in tool.inputSchema.properties.purpose, false);
+  assert.deepEqual(parseToolText(await tool.handler({name: 'Sample', purpose: 'work'})),
+    {id: '123', name: 'Sample', alias_code: 'sample'});
+  for (const args of [{name: 'Sample'}, {name: 'x'.repeat(21), purpose: 'work'},
+    {name: 'Sample', purpose: 'unsupported-input-value'}, {name: 'Sample', purpose: 'work', extra: 'hidden'}]) {
+    const result = await tool.handler(args);
+    assert.equal(result.isError, true);
+    assert.equal(parseToolText(result).error, 'Invalid calendar input');
+    assert.ok(parseToolText(result).issues.length);
+    assert.equal(JSON.stringify(result).includes('unsupported-input-value'), false);
+  }
+  assert.equal(calls.length, 1);
+});
+
+test('create_calendar distinguishes auth and uncertain failures without forwarding details', async () => {
+  const {createCreateCalendarTool} = await import('../.test-dist/tools/calendar-tools.js');
+  const {AuthenticationError} = await import('../.test-dist/client/auth.js');
+  for (const error of [new AuthenticationError('upstream detail'),
+    Object.assign(new Error('upstream detail'), {statusCode: 401}),
+    Object.assign(new Error('upstream detail'), {statusCode: 403}), new Error('upstream detail')]) {
+    const tool = createCreateCalendarTool({createCalendar: async () => {throw error;}});
+    const result = await tool.handler({name: 'Sample', purpose: 'work'});
+    assert.equal(result.isError, true);
+    assert.equal(JSON.stringify(result).includes('upstream detail'), false);
+    assert.equal(parseToolText(result).error, error instanceof AuthenticationError || error.statusCode === 401 || error.statusCode === 403
+      ? 'Authentication failed' : 'Calendar creation failed. Check existing calendars before retrying.');
+  }
+});
+
+test('create_calendar treats response validation errors as uncertain creation outcomes', async () => {
+  const {createCreateCalendarTool} = await import('../.test-dist/tools/calendar-tools.js');
+  const {TimeTreeAPIClient} = await import('../.test-dist/client/api.js');
+  for (const calendar of [
+    {id: 456, name: 'Sample', alias_code: null},
+    {id: 456, name: null, alias_code: 'sample'},
+  ]) {
+    let requests = 0;
+    const client = new TimeTreeAPIClient({
+      isAuthenticated: () => true,
+      getCsrfToken: () => 'synthetic-token',
+      getHttpClient: () => ({post: async () => {requests++; return {calendar};}}),
+    });
+    const result = await createCreateCalendarTool(client).handler({name: 'Sample', purpose: 'work'});
+
+    assert.equal(requests, 1);
+    assert.equal(result.isError, true);
+    assert.deepEqual(parseToolText(result), {
+      error: 'Calendar creation failed. Check existing calendars before retrying.',
+    });
+  }
+});
+
+test('create_calendar reports persistent TimeTree auth rejections as authentication failures', async () => {
+  const {createCreateCalendarTool} = await import('../.test-dist/tools/calendar-tools.js');
+  const {TimeTreeAPIClient} = await import('../.test-dist/client/api.js');
+  for (const [statusCode, code] of [[401, undefined], [400, -493], [422, -1]]) {
+    let requests = 0;
+    let signIns = 0;
+    const client = new TimeTreeAPIClient({
+      isAuthenticated: () => true,
+      authenticate: async () => {signIns++;},
+      getCsrfToken: () => 'synthetic-token',
+      getHttpClient: () => ({post: async () => {
+        requests++;
+        throw Object.assign(new Error('upstream detail'), {
+          statusCode, response: JSON.stringify({error: {code, message: 'upstream detail'}}),
+        });
+      }}),
+    });
+    const result = await createCreateCalendarTool(client).handler({name: 'Sample', purpose: 'work'});
+
+    assert.equal(requests, 2);
+    assert.equal(signIns, 1);
+    assert.equal(result.isError, true);
+    assert.deepEqual(parseToolText(result), {error: 'Authentication failed'});
+    assert.equal(JSON.stringify(result).includes('upstream detail'), false);
+  }
 });

@@ -21,13 +21,15 @@ function makeEvent(overrides = {}) {
   };
 }
 
-function makeClient(http) {
+function makeClient(http, auth = {}) {
   return new TimeTreeAPIClient({
     isAuthenticated: () => true,
     authenticate: async () => {
       throw new Error('authenticate should not be called in unit tests');
     },
     getHttpClient: () => http,
+    getCsrfToken: () => "test-token",
+    ...auth,
   });
 }
 
@@ -165,6 +167,25 @@ test('event comment methods use activity endpoints and filter comment activities
   assert.ok(calls.some((call) => call.url === 'https://timetreeapp.com/api/v1/calendar/123/event/evt/activity/comment'));
 });
 
+test('createCalendar uses v2 CSRF-protected creation without invitations, with rate limiting', async () => {
+  const calls = [];
+  const client = makeClient({post: async (...args) => {
+    calls.push(args);
+    return { calendar: {id: 456, name: 'Private', alias_code: 'new-alias'} };
+  }});
+  let throttled = 0;
+  const retry = client.rateLimiter.executeWithRetry.bind(client.rateLimiter);
+  client.rateLimiter.executeWithRetry = (...args) => { throttled++; return retry(...args); };
+  assert.equal((await client.createCalendar(' Private ', 'lover')).id, 456);
+  assert.equal(throttled, 1);
+  assert.deepEqual(calls, [['https://timetreeapp.com/api/v2/calendars',
+    {name: 'Private', purpose: 'lover'}, undefined, true]]);
+  let count = 0;
+  const failing = makeClient({post: async () => {count++; throw new Error('timeout');}});
+  await assert.rejects(failing.createCalendar('Private', 'private'));
+  assert.equal(count, 1);
+});
+
 test('createEvent stores url in attachment and sends an empty checklist as null', async () => {
   const calls = [];
   const client = makeClient({
@@ -266,4 +287,65 @@ test('getLatestEventActivities queries the latest activity feed for calendars', 
   assert.equal(url.pathname, '/api/v1/event_activities/latest');
   assert.deepEqual(url.searchParams.getAll('calendar_ids[]'), ['123']);
   assert.deepEqual(events[0].activities[0].status, [1]);
+});
+
+test('createCalendar retries a rejected 429 request but not timeouts or 5xx', async () => {
+  let count = 0;
+  const limited = makeClient({ post: async () => {
+    if (++count === 1) throw Object.assign(new Error('rate limited'), {statusCode: 429});
+    return {calendar: {id: 456, name: 'Sample', alias_code: 'sample'}};
+  }});
+  await limited.createCalendar('Sample', 'work');
+  assert.equal(count, 2);
+  for (const error of [new Error('timeout'), Object.assign(new Error('server failure'), {statusCode: 500})]) {
+    let requests = 0;
+    const client = makeClient({post: async () => {requests++; throw error;}});
+    await assert.rejects(client.createCalendar('Sample', 'work'));
+    assert.equal(requests, 1);
+  }
+});
+
+test('createCalendar maps 403 without leaking the upstream error', async () => {
+  const client = makeClient({post: async () => {throw Object.assign(new Error('upstream detail'), {statusCode: 403});}});
+  await assert.rejects(client.createCalendar('Sample', 'work'), error =>
+    error.name === 'TimeTreeAPIError' && error.statusCode === 403 && !error.message.includes('upstream detail'));
+});
+
+test('createCalendar never retries 5xx carrying session or CSRF error codes', async () => {
+  for (const statusCode of [500, 502, 503, 504]) {
+    for (const code of [-493, -1]) {
+      let requests = 0;
+      let signIns = 0;
+      const error = Object.assign(new Error('synthetic server failure'), {
+        statusCode, response: JSON.stringify({error: {code}}),
+      });
+      const client = makeClient({post: async () => {
+        requests++;
+        if (requests === 1) throw error;
+        return {calendar: {id: 456, name: 'Sample'}};
+      }}, {authenticate: async () => {signIns++;}});
+
+      await assert.rejects(client.createCalendar('Sample', 'work'), thrown => thrown === error);
+      assert.equal(requests, 1, `HTTP ${statusCode}, code ${code} was retried`);
+      assert.equal(signIns, 0);
+    }
+  }
+});
+
+test('createCalendar still recovers rejected authentication once', async () => {
+  for (const [statusCode, code] of [[401, undefined], [400, -493], [422, -1]]) {
+    let requests = 0;
+    let signIns = 0;
+    const client = makeClient({post: async () => {
+      requests++;
+      if (requests === 1) throw Object.assign(new Error('synthetic auth rejection'), {
+        statusCode, response: JSON.stringify({error: {code}}),
+      });
+      return {calendar: {id: 456, name: 'Sample'}};
+    }}, {authenticate: async () => {signIns++;}});
+
+    assert.equal((await client.createCalendar('Sample', 'work')).id, 456);
+    assert.equal(requests, 2);
+    assert.equal(signIns, 1);
+  }
 });

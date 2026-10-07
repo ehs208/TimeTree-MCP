@@ -113,7 +113,7 @@ Details: [docs/UPDATING.md](docs/UPDATING.md). Changes: [CHANGELOG.md](CHANGELOG
 
 | Area | Tools |
 |---|---|
-| Calendars | `list_calendars` |
+| Calendars | `list_calendars`, `create_calendar` |
 | Events | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
 | Memos | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
 | Comments | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
@@ -121,6 +121,9 @@ Details: [docs/UPDATING.md](docs/UPDATING.md). Changes: [CHANGELOG.md](CHANGELOG
 | Other | `get_holidays`, `get_recent_activity` |
 
 Parameters and examples: [COMMANDS.md](COMMANDS.md)
+
+`create_calendar` requires a name (1–20 characters) and an explicit purpose. It does not invite members. Timeouts and server errors are not retried.
+If the creation response cannot be validated, check existing calendars before trying again.
 
 ## Privacy and security
 

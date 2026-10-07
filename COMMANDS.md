@@ -291,3 +291,17 @@ Events can be color-coded with `label_id` 1-10:
 - **All-day events**: TimeTree uses inclusive end dates. A Feb 15-16 event sets `end_at` to Feb 16 00:00, not Feb 17.
 - **Timezones**: Default is UTC. Specify timezone for accurate local times.
 - **Write operations** (create/update/delete) require a CSRF token, which is managed automatically.
+
+### Create a calendar
+
+Call `create_calendar` with both `name` (1–20 characters) and an explicit `purpose`:
+
+```json
+{"name": "Project calendar", "purpose": "work"}
+```
+
+Supported purposes: `family`, `private`, `lover`, `work`, `friend`, `work_schedule`, `lesson`, `school_event`, `circle`, `hobby`, `other`.
+Creation does not invite members. Requests use rate limiting and retry HTTP 429 rejections or rejected authentication through the shared client. Timeouts and server errors are not retried.
+Invalid input returns field-level reasons without input values. Authentication errors return `Authentication failed`.
+Persistent TimeTree session or CSRF rejections are reported as authentication failures after one sign-in recovery attempt.
+After an uncertain creation failure (such as a timeout or an unexpected success response), check existing calendars before retrying. Response validation failures are not reported as invalid input. HTTP 5xx responses are never retried, even if their bodies contain authentication error codes.
