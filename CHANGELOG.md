@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-07
+
 ### Added
 - Added `create_calendar` without member invitations, requiring an explicit name and purpose. Uses existing rate limiting and authentication recovery without retrying timeouts or server errors.
 - Calendar creation distinguishes invalid fields and authentication failures without forwarding upstream details.
