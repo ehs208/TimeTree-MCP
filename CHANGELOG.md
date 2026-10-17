@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `get_events` and `list_memos` now read every event in large calendars. The events sync endpoint returns the newest chunk first with a decreasing cursor, and paging stopped after the first chunk. Paging now continues while the cursor is new, in either direction.
+- Event paging fails with an error instead of returning a partial list when the cursor repeats or no last chunk arrives within 200 pages, and keeps one entry per event when chunks overlap.
+
 ## [0.5.0] - 2026-10-07
 
 ### Added

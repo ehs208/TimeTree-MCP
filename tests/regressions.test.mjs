@@ -361,3 +361,66 @@ test('sign-in goes through the rate limiter', async () => {
   await client.getCalendars();
   assert.equal(limited, 2, 'expected one limited call for sign-in and one for the request');
 });
+
+function pagedClient(pages) {
+  const cursors = [];
+  const client = makeClient({
+    get: async (url) => {
+      const since = Number(new URL(url).searchParams.get('since'));
+      cursors.push(since);
+      const page = pages[since];
+      if (!page) throw new Error(`unexpected since=${since}`);
+      return page;
+    },
+  });
+  return { client, cursors };
+}
+
+test('event sync follows a decreasing cursor (newest chunk first)', async () => {
+  const { client, cursors } = pagedClient({
+    0: { chunk: true, since: 800, events: [makeEvent({ uuid: 'a', updated_at: 900 }), makeEvent({ uuid: 'b', updated_at: 800 })] },
+    800: { chunk: true, since: 600, events: [makeEvent({ uuid: 'c', updated_at: 700 }), makeEvent({ uuid: 'd', updated_at: 600 })] },
+    600: { chunk: false, since: 500, events: [makeEvent({ uuid: 'e', updated_at: 500 })] },
+  });
+
+  const events = await client.getEventsByCalendar('123');
+
+  assert.deepEqual(cursors, [0, 800, 600]);
+  assert.deepEqual(events.map((event) => event.uuid), ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('event paging keeps one entry per uuid when chunks overlap', async () => {
+  const { client } = pagedClient({
+    0: { chunk: true, since: 800, events: [makeEvent({ uuid: 'a', updated_at: 900 }), makeEvent({ uuid: 'b', updated_at: 800 })] },
+    800: { chunk: false, since: 700, events: [makeEvent({ uuid: 'b', updated_at: 800 }), makeEvent({ uuid: 'c', updated_at: 700 })] },
+  });
+
+  const events = await client.getEventsByCalendar('123');
+
+  assert.deepEqual(events.map((event) => event.uuid), ['a', 'b', 'c']);
+});
+
+test('event paging fails instead of returning a partial list when the cursor repeats', async () => {
+  const { client, cursors } = pagedClient({
+    0: { chunk: true, since: 800, events: [makeEvent({ uuid: 'a', updated_at: 900 })] },
+    800: { chunk: true, since: 700, events: [makeEvent({ uuid: 'b', updated_at: 800 })] },
+    700: { chunk: true, since: 800, events: [makeEvent({ uuid: 'c', updated_at: 700 })] },
+  });
+
+  await assert.rejects(client.getEventsByCalendar('123'), /cursor 800 repeated/);
+  assert.deepEqual(cursors, [0, 800, 700]);
+});
+
+test('event paging fails instead of returning a partial list after the page limit', async () => {
+  let calls = 0;
+  const client = makeClient({
+    get: async (url) => {
+      calls += 1;
+      const since = Number(new URL(url).searchParams.get('since'));
+      return { chunk: true, since: since + 1, events: [makeEvent({ uuid: `e${since}` })] };
+    },
+  });
+
+  await assert.rejects(client.getEventsByCalendar('123'), /no last chunk after 200 pages/);
+  assert.equal(calls, 200);
+});

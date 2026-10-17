@@ -75,6 +75,9 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Upper bound for event paging; at about 300 events per chunk far above real calendars. */
+const MAX_EVENT_PAGES = 200;
+
 function todayUtcMidnight(): number {
   const now = new Date();
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -292,28 +295,47 @@ export class TimeTreeAPIClient {
   /**
    * Fetch every page of an event feed. TimeTree splits large responses into chunks: while
    * `chunk` is true, the returned `since` is the cursor for the next page.
+   *
+   * The cursor does not always grow: the events sync endpoint returns the newest chunk
+   * first and reports the oldest `updated_at` of that chunk, so its cursor decreases.
+   * Paging therefore continues while the cursor is new, in either direction. A repeated
+   * cursor or too many pages is an error, never a silently truncated list: callers that
+   * compare listings would read the missing events as deleted.
    */
   private async fetchEventPages(
     buildUrl: (since: number) => string,
     since: number
   ): Promise<Event[]> {
-    const events: Event[] = [];
+    // Chunks can overlap at their boundary; keep the newest version per uuid.
+    const byUuid = new Map<string, Event>();
+    const visited = new Set<number>([since]);
     let cursor = since;
 
-    for (;;) {
+    for (let page = 1; page <= MAX_EVENT_PAGES; page++) {
       const response = await this.send(async () => {
         return await this.authManager.getHttpClient().get<EventsSyncResponse>(buildUrl(cursor));
       });
 
       const validated = EventsSyncResponseSchema.parse(response);
-      events.push(...validated.events);
-
-      if (!validated.chunk || validated.since <= cursor) {
-        return events;
+      for (const event of validated.events) {
+        const known = byUuid.get(event.uuid);
+        if (!known || (event.updated_at ?? 0) >= (known.updated_at ?? 0)) {
+          byUuid.set(event.uuid, event);
+        }
       }
-      logger.debug('More events to fetch', { nextSince: validated.since, fetchedSoFar: events.length });
+
+      if (!validated.chunk) {
+        return [...byUuid.values()];
+      }
+      if (visited.has(validated.since)) {
+        throw new TimeTreeAPIError(`Event paging stopped: cursor ${validated.since} repeated before the last chunk`);
+      }
+      logger.debug('More events to fetch', { nextSince: validated.since, fetchedSoFar: byUuid.size });
+      visited.add(validated.since);
       cursor = validated.since;
     }
+
+    throw new TimeTreeAPIError(`Event paging stopped: no last chunk after ${MAX_EVENT_PAGES} pages`);
   }
 
   /** Sync all active events from a calendar with automatic pagination. */
