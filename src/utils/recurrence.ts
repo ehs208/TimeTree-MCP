@@ -436,7 +436,8 @@ export interface SeriesSplit {
   /**
    * Lines that end the original series on the local day of its last occurrence before the
    * split, as the web app does (COUNT replaced by a date-only UNTIL). Null when the split is
-   * the first remaining occurrence, so the whole series is affected.
+   * no occurrence remains before it (it is the first, or every earlier one was deleted), so
+   * the whole series is affected.
    */
   before: string[] | null;
   /**
@@ -444,6 +445,18 @@ export interface SeriesSplit {
    * occurrences that remain, and UNTIL and later EXDATEs moved by `shift` so they still match.
    */
   after: string[];
+}
+
+/**
+ * Whether moving occurrence `at` by `shift` puts it on another local day while the rule picks
+ * days with BYDAY, BYMONTHDAY, or BYMONTH. The moved series would keep repeating on the old
+ * days, so the caller needs a new rule.
+ */
+export function shiftNeedsNewRule(recurrence: ParsedRecurrence, timing: SeriesTiming, at: number, shift: number): boolean {
+  const { rule } = recurrence;
+  if (!rule.byDay.length && !rule.byMonthDay.length && !rule.byMonth.length) return false;
+  const formatter = formatterFor(timing.timeZone);
+  return compareDates(toLocal(at, formatter), toLocal(at + shift, formatter)) !== 0;
 }
 
 /**

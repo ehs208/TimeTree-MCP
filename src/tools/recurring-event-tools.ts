@@ -24,6 +24,7 @@ import {
   addExdate,
   isOccurrence,
   parseRecurrence,
+  shiftNeedsNewRule,
   splitRecurrence,
   type ParsedRecurrence,
   type SeriesTiming,
@@ -152,12 +153,36 @@ async function finishSeriesUpdate(
   }
 }
 
+/**
+ * First step of a two-step change. A create that fails without a clear answer (a timeout or
+ * a server error) may still have been saved, so the caller is told to look before retrying.
+ */
+async function createStep(apiClient: TimeTreeAPIClient, calendarId: string, data: CreateEventInput): Promise<Event> {
+  try {
+    return await apiClient.createEvent(calendarId, data);
+  } catch (error) {
+    const status = (error as { statusCode?: number }).statusCode;
+    if (status === undefined || status >= 500) {
+      logger.error('Event create failed without a clear answer', { calendarId, error });
+      throw new OccurrenceError(
+        'Creating the event failed without a clear answer from TimeTree, so it may have been created anyway. ' +
+          'The series was not changed. Check with get_events before retrying, and delete a duplicate with delete_event.'
+      );
+    }
+    throw error;
+  }
+}
+
 /** Undo the first step of a two-step change; the original error is what the caller sees. */
 async function rollback(apiClient: TimeTreeAPIClient, calendarId: string, created: Event) {
   try {
     await apiClient.deleteEvent(calendarId, created.uuid);
   } catch (error) {
     logger.error('Rollback failed; an extra event may remain', { calendarId, eventUuid: created.uuid, error });
+    throw new OccurrenceError(
+      `The series update failed, and removing event ${created.uuid} created for it failed too. ` +
+        'Delete that event with delete_event; the series is unchanged.'
+    );
   }
 }
 
@@ -348,7 +373,9 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
         recurrences: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Only with scope "this_and_following": a new RRULE for the new series, e.g. ["RRULE:FREQ=WEEKLY;INTERVAL=2"]',
+          description:
+            'Only with scope "this_and_following": a new RRULE for the new series, e.g. ["RRULE:FREQ=WEEKLY;INTERVAL=2"]. ' +
+            'Required when start_at moves the occurrences to another day and the rule uses BYDAY, BYMONTHDAY, or BYMONTH.',
         },
       },
       required: ['calendar_id', 'event_uuid', 'occurrence_start_at'],
@@ -388,14 +415,24 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
         let result: 'occurrence_event_created' | 'new_series_created' | 'whole_series_updated';
         let event: Event;
         if (input.scope === 'this') {
-          event = await apiClient.createEvent(calendarId, { ...changed, parent_id: input.event_uuid });
+          event = await createStep(apiClient, calendarId, { ...changed, parent_id: input.event_uuid });
           await finishSeriesUpdate(apiClient, calendarId, input.event_uuid, addExdate(series.lines, at), event);
           result = 'occurrence_event_created';
         } else {
-          const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, changed.start_at - at);
+          const shift = changed.start_at - at;
+          if (input.recurrences === undefined && shiftNeedsNewRule(series.recurrence, series.timing, at, shift)) {
+            throw new OccurrenceError(
+              'This moves the occurrences to another day, but the series repeats on set days ' +
+                `(${series.lines.find((line) => line.toUpperCase().startsWith('RRULE:'))}). ` +
+                'Pass recurrences with the new rule, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=TU"].'
+            );
+          }
+          const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, shift);
           if (!split.before) {
+            // Earlier occurrences may all be deleted; a moved start then needs the reduced COUNT.
+            const recurrences = input.recurrences ?? (input.start_at === undefined ? undefined : split.after);
             const { title, start_at, end_at, start_timezone, end_timezone, label_id, note, location, url, attendees,
-              alerts, recurrences } = input;
+              alerts } = input;
             event = await apiClient.updateEvent(calendarId, input.event_uuid, {
               title, start_at, end_at: end_at ?? (start_at === undefined ? undefined : changed.end_at),
               start_timezone, end_timezone, label_id, note, location, url, attendees, alerts, recurrences,
@@ -403,7 +440,7 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
             });
             result = 'whole_series_updated';
           } else {
-            event = await apiClient.createEvent(calendarId, { ...changed, recurrences: input.recurrences ?? split.after });
+            event = await createStep(apiClient, calendarId, { ...changed, recurrences: input.recurrences ?? split.after });
             await finishSeriesUpdate(apiClient, calendarId, input.event_uuid, split.before, event);
             result = 'new_series_created';
           }

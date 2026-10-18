@@ -190,6 +190,84 @@ test('update_event_occurrence keeps the created event when the series cannot be 
   assert.ok(!client.calls.some(([method]) => method === 'deleteEvent'));
 });
 
+test('update_event_occurrence reports the created event when the rollback delete fails too', async () => {
+  let reads = 0;
+  const client = fakeClient({
+    getEvent: async () => (reads++, series()),
+    updateEvent: async () => {
+      throw new Error('server error');
+    },
+    deleteEvent: async () => {
+      throw new Error('server error');
+    },
+  });
+  const result = await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-21T01:00:00Z', title: 'Moved',
+  });
+
+  assert.equal(result.isError, true);
+  assert.match(parse(result).message, /removing event created .* failed too/);
+});
+
+test('update_event_occurrence does not change the series when the create has no clear answer', async () => {
+  const client = fakeClient({
+    createEvent: async () => {
+      throw Object.assign(new Error('timeout'), { statusCode: undefined });
+    },
+  });
+  const result = await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-22T01:00:00Z',
+    scope: 'this_and_following', label_id: 6,
+  });
+
+  assert.equal(result.isError, true);
+  assert.match(parse(result).message, /may have been created anyway/);
+  assert.ok(!client.calls.some(([method]) => method === 'updateEvent'));
+});
+
+test('update_event_occurrence asks for a new rule when moving a BYDAY series to another day', async () => {
+  const monday = Date.parse('2026-10-19T01:00:00Z');
+  const weekly = () => series({ start_at: monday, end_at: monday + HOUR, recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=MO'] });
+  const at = monday + 7 * 24 * HOUR;
+  const args = {
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: at, scope: 'this_and_following',
+    start_at: at + 24 * HOUR,
+  };
+
+  const refused = await createUpdateEventOccurrenceTool(fakeClient({ getEvent: async () => weekly() })).handler(args);
+  assert.equal(refused.isError, true);
+  assert.match(parse(refused).message, /Pass recurrences/);
+
+  const client = fakeClient({ getEvent: async () => weekly() });
+  const moved = parse(await createUpdateEventOccurrenceTool(client).handler({
+    ...args, recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=TU'],
+  }));
+  assert.equal(moved.result, 'new_series_created');
+  assert.deepEqual(client.calls.find(([method]) => method === 'createEvent')[2].recurrences, ['RRULE:FREQ=WEEKLY;BYDAY=TU']);
+
+  // Another time on the same day keeps the rule.
+  const sameDay = await createUpdateEventOccurrenceTool(fakeClient({ getEvent: async () => weekly() })).handler({
+    ...args, start_at: at + 2 * HOUR,
+  });
+  assert.equal(sameDay.isError, undefined);
+});
+
+test('update_event_occurrence keeps the reduced COUNT when every earlier occurrence was deleted', async () => {
+  const client = fakeClient({
+    getEvent: async () => series({ recurrences: ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261020T010000Z'] }),
+  });
+  const at = Date.parse('2026-10-21T01:00:00Z');
+  const result = parse(await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: at, scope: 'this_and_following',
+    start_at: at + HOUR,
+  }));
+
+  assert.equal(result.result, 'whole_series_updated');
+  const [, , , update] = client.calls.find(([method]) => method === 'updateEvent');
+  assert.equal(update.start_at, at + HOUR);
+  assert.deepEqual(update.recurrences, ['RRULE:FREQ=DAILY;COUNT=3']);
+});
+
 test('update_event_occurrence "this_and_following" starts a new series with the remaining count', async () => {
   const client = fakeClient();
   const at = Date.parse('2026-10-22T01:00:00Z');
