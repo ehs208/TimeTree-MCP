@@ -228,3 +228,29 @@ test('splitRecurrence moves later exclusions with a new start time and reports a
 
   assert.equal(splitRecurrence(lines, parsed, timing, timing.start).before, null);
 });
+
+test('splitRecurrence moves UNTIL with a new start time so the last occurrence is kept', () => {
+  const twoHours = 2 * 60 * 60 * 1000;
+  const at = Date.parse('2026-10-22T10:00:00Z');
+
+  const exact = ['RRULE:FREQ=DAILY;UNTIL=20261023T100000Z'];
+  const utc = { start: Date.parse('2026-10-20T10:00:00Z'), timeZone: 'UTC' };
+  const movedExact = splitRecurrence(exact, parseRecurrence(exact), utc, at, twoHours);
+  assert.deepEqual(movedExact.after, ['RRULE:FREQ=DAILY;UNTIL=20261023T120000Z']);
+  assert.deepEqual(
+    expand(movedExact.after, '2026-10-22T12:00:00Z', 'UTC', '2026-10-01T00:00:00Z', '2026-11-01T00:00:00Z').map(iso),
+    ['2026-10-22T12:00:00.000Z', '2026-10-23T12:00:00.000Z']
+  );
+
+  // 23:00 in Seoul moved 2 hours later lands on the next local day, so the date-only UNTIL moves too.
+  const dateOnly = ['RRULE:FREQ=DAILY;UNTIL=20261023'];
+  const seoul = { start: Date.parse('2026-10-20T14:00:00Z'), timeZone: 'Asia/Seoul' };
+  const movedDate = splitRecurrence(dateOnly, parseRecurrence(dateOnly), seoul, Date.parse('2026-10-22T14:00:00Z'), twoHours);
+  assert.deepEqual(movedDate.after, ['RRULE:FREQ=DAILY;UNTIL=20261024']);
+  assert.equal(
+    expand(movedDate.after, '2026-10-22T16:00:00Z', 'Asia/Seoul', '2026-10-01T00:00:00Z', '2026-11-01T00:00:00Z').length,
+    2
+  );
+
+  assert.deepEqual(splitRecurrence(dateOnly, parseRecurrence(dateOnly), seoul, Date.parse('2026-10-22T14:00:00Z')).after, dateOnly);
+});

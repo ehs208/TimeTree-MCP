@@ -272,7 +272,7 @@ Comments are visible to everyone in the calendar. TimeTree lets only a comment's
 | `delete_virtual_member` | `calendar_id`, `virtual_member_uuid` |
 | `get_current_user` | *(none)* |
 
-Virtual members are people or things without a TimeTree account, such as a child, pet, or car. `type` is one of `child`, `pet`, `car`, `grandfather`, `grandmother`, `other` (default). `birthday` is `YYYY-MM-DD`; `shows_birthday` needs a birthday. A calendar can have at most 10 virtual members.
+Virtual members are people or things without a TimeTree account, such as a child, pet, or car. `type` is one of `child`, `pet`, `car`, `grandfather`, `grandmother`, `other` (default). `birthday` is `YYYY-MM-DD`, and `update_virtual_member` with `birthday: null` removes it; `shows_birthday` needs a birthday. A calendar can have at most 10 virtual members.
 
 `get_calendar_virtual_members` returns two identifiers: put `id` in an event's `virtual_user_attendees`, and use `uuid` as `virtual_member_uuid` to update or delete. Updating resends the member's current fields with the changes, because TimeTree clears the short description and birthday when they are left out.
 

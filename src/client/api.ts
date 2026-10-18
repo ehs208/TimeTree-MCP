@@ -656,7 +656,8 @@ export class TimeTreeAPIClient {
 
     logger.info('Creating calendar virtual user', { calendarId });
     const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_VIRTUAL_USERS(calendarId)}`;
-    const body = { account_type: 'other', one_word: '', ...input };
+    const { birthday, ...rest } = input;
+    const body = { account_type: 'other', one_word: '', ...rest, ...(birthday != null && { birthday }) };
     requireBirthdayForVisibility(body);
 
     try {
@@ -672,7 +673,8 @@ export class TimeTreeAPIClient {
   /**
    * Update a virtual member, addressed by its uuid (TimeTree rejects the numeric id here).
    * A PUT clears one_word, birthday, and shows_birthday when they are omitted, so the
-   * current values are sent along with the changes.
+   * current values are sent along with the changes. birthday: null removes the birthday
+   * by leaving it (and shows_birthday) out.
    */
   async updateVirtualUser(
     calendarId: string,
@@ -695,6 +697,13 @@ export class TimeTreeAPIClient {
       ...(current.birthday != null && { birthday: current.birthday, shows_birthday: current.shows_birthday ?? false }),
       ...input,
     };
+    if (body.birthday === null) {
+      if (input.shows_birthday === true) {
+        throw new TimeTreeAPIError('shows_birthday needs a birthday; set birthday as well', 400);
+      }
+      delete body.birthday;
+      delete body.shows_birthday;
+    }
     requireBirthdayForVisibility(body);
 
     try {

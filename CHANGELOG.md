@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `update_event_occurrence` and `delete_event_occurrence` change or delete one occurrence of a recurring event, or it and every later one, the way the TimeTree app does. Earlier occurrences are not touched, and a failed second step removes the event created in the first.
 - `copy_event` copies an event to a new time, optionally into another calendar.
-- `create_virtual_member`, `update_virtual_member`, and `delete_virtual_member` manage members without a TimeTree account. `get_calendar_virtual_members` now returns each member's `uuid`, type, short description, and birthday.
+- `create_virtual_member`, `update_virtual_member`, and `delete_virtual_member` manage members without a TimeTree account (`birthday: null` removes a birthday). `get_calendar_virtual_members` now returns each member's `uuid`, type, short description, and birthday.
 - `get_current_user` returns your user ID and name.
 - Every tool declares MCP annotations (read-only, destructive, idempotent) and an output schema, and returns its JSON as `structuredContent`.
 - The server publishes instructions that explain the calendar ID, time, memo, and recurring-event conventions before the tool list.

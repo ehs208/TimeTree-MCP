@@ -441,9 +441,24 @@ export interface SeriesSplit {
   before: string[] | null;
   /**
    * Lines for a new series starting at the split: the RRULE with COUNT reduced to the
-   * occurrences that remain, and later EXDATEs moved by `shift` so they still match.
+   * occurrences that remain, and UNTIL and later EXDATEs moved by `shift` so they still match.
    */
   after: string[];
+}
+
+/**
+ * UNTIL for a series whose occurrences all move by `shift`, so a moved last occurrence is
+ * not cut off. A date-only UNTIL becomes the local day of the moved last occurrence.
+ */
+function shiftedUntil(recurrence: ParsedRecurrence, timing: SeriesTiming, at: number, shift: number): string | null {
+  const { rule } = recurrence;
+  if (!rule.untilDate) return rule.until === undefined ? null : formatUtcDateTime(rule.until + shift);
+
+  const remaining = occurrencesBetween({ rule, exdates: new Set() }, timing, at, Number.POSITIVE_INFINITY);
+  const last = remaining[remaining.length - 1];
+  if (last === undefined) return null;
+  const day = toLocal(last + shift, formatterFor(timing.timeZone));
+  return `${day.year}${pad(day.month)}${pad(day.day)}`;
 }
 
 /** Split a series at occurrence `at` for "this and following" edits and deletions. */
@@ -476,9 +491,11 @@ export function splitRecurrence(
   ).length;
   const rule = rewriteRule(
     lines.filter((line) => line.toUpperCase().startsWith('RRULE:')),
-    (parts) => parts.map(([key, value]): [string, string] =>
-      key === 'COUNT' ? [key, String(Math.max(1, Number(value) - generatedBefore))] : [key, value]
-    )
+    (parts) => parts.map(([key, value]): [string, string] => {
+      if (key === 'COUNT') return [key, String(Math.max(1, Number(value) - generatedBefore))];
+      if (key === 'UNTIL' && shift !== 0) return [key, shiftedUntil(recurrence, timing, at, shift) ?? value];
+      return [key, value];
+    })
   );
   const laterExdates = [...recurrence.exdates].filter((instant) => instant > at).map((instant) => instant + shift);
   const after = laterExdates.length

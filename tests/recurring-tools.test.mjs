@@ -149,6 +149,47 @@ test('update_event_occurrence removes the created event when excluding the occur
   assert.deepEqual(client.calls.at(-1), ['deleteEvent', '123', 'created']);
 });
 
+test('update_event_occurrence keeps the created event when the failed series update was applied', async () => {
+  // A lost response: TimeTree saved the EXDATE, so deleting the new event would lose the occurrence.
+  let reads = 0;
+  const client = fakeClient({
+    getEvent: async () => (reads++ === 0
+      ? series()
+      : series({ recurrences: ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261021T010000Z'] })),
+    updateEvent: async () => {
+      throw new Error('timeout');
+    },
+  });
+  const result = await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-21T01:00:00Z', title: 'Moved',
+  });
+
+  assert.equal(result.isError, undefined);
+  assert.equal(parse(result).result, 'occurrence_event_created');
+  assert.ok(!client.calls.some(([method]) => method === 'deleteEvent'));
+});
+
+test('update_event_occurrence keeps the created event when the series cannot be read after a failure', async () => {
+  let reads = 0;
+  const client = fakeClient({
+    getEvent: async () => {
+      if (reads++ === 0) return series();
+      throw new Error('network down');
+    },
+    updateEvent: async () => {
+      throw new Error('timeout');
+    },
+  });
+  const result = await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-22T01:00:00Z',
+    scope: 'this_and_following', label_id: 6,
+  });
+
+  assert.equal(result.isError, true);
+  assert.match(parse(result).message, /event created was kept/);
+  assert.ok(!client.calls.some(([method]) => method === 'deleteEvent'));
+});
+
 test('update_event_occurrence "this_and_following" starts a new series with the remaining count', async () => {
   const client = fakeClient();
   const at = Date.parse('2026-10-22T01:00:00Z');
@@ -290,6 +331,28 @@ test('updateVirtualUser resends current fields, since TimeTree clears omitted on
   });
 
   await assert.rejects(client.updateVirtualUser('123', 'missing', { name: 'x' }), (error) => error.statusCode === 404);
+});
+
+test('updateVirtualUser removes the birthday when it is null', async () => {
+  const puts = [];
+  const client = makeClient({
+    get: async () => ({
+      calendar_virtual_users: [
+        { id: '1', uuid: 'vm-uuid', name: 'Kid', account_type: 'child', one_word: 'eldest', birthday: '2020-05-01', shows_birthday: true },
+      ],
+    }),
+    put: async (url, body) => {
+      puts.push(body);
+      return { calendar_virtual_user: { id: '1', uuid: 'vm-uuid', ...body } };
+    },
+  });
+
+  // Omitting birthday and shows_birthday from the PUT is what clears them.
+  await client.updateVirtualUser('123', 'vm-uuid', { birthday: null });
+  assert.deepEqual(puts[0], { name: 'Kid', account_type: 'child', one_word: 'eldest' });
+
+  await assert.rejects(client.updateVirtualUser('123', 'vm-uuid', { birthday: null, shows_birthday: true }), /needs a birthday/);
+  assert.equal(puts.length, 1);
 });
 
 test('virtual user update and delete use the uuid path and report a missing member', async () => {

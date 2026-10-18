@@ -12,7 +12,8 @@
  *   occurrence with the changes.
  *
  * Two-step changes undo the first step when the second fails, so a failure leaves no
- * duplicate occurrence behind.
+ * duplicate occurrence behind. When the failed step may still have been applied, the series
+ * is read again first, so the undo never removes occurrences the series no longer has.
  */
 
 import { z } from 'zod';
@@ -106,6 +107,49 @@ async function loadSeries(
     );
   }
   return { event, lines, recurrence, timing };
+}
+
+function sameRecurrences(actual: unknown[] | undefined, expected: string[]): boolean {
+  const normalize = (lines: unknown[]) =>
+    lines.filter((line): line is string => typeof line === 'string').map((line) => line.trim().toUpperCase()).sort();
+  const a = normalize(actual ?? []);
+  const b = normalize(expected);
+  return a.length === b.length && a.every((line, i) => line === b[i]);
+}
+
+/**
+ * Second step of a two-step change: rewrite the series' recurrences. A failed request may
+ * still have been applied (a lost response or a timeout), and then `created` holds the
+ * occurrences the series gave up, so the series is read again before `created` is deleted.
+ */
+async function finishSeriesUpdate(
+  apiClient: TimeTreeAPIClient,
+  calendarId: string,
+  seriesUuid: string,
+  recurrences: string[],
+  created: Event
+) {
+  try {
+    await apiClient.updateEvent(calendarId, seriesUuid, { recurrences, silent: true });
+    return;
+  } catch (error) {
+    let current: Event;
+    try {
+      current = await apiClient.getEvent(calendarId, seriesUuid);
+    } catch (readError) {
+      logger.error('Could not read the series after a failed update', { calendarId, seriesUuid, error: readError });
+      throw new OccurrenceError(
+        `The series update failed and its result could not be checked, so event ${created.uuid} was kept to avoid ` +
+          'losing occurrences. Check the series with get_events; if that event duplicates an occurrence, delete it with delete_event.'
+      );
+    }
+    if (sameRecurrences(current.recurrences, recurrences)) {
+      logger.warn('Series update reported an error but was applied', { calendarId, seriesUuid });
+      return;
+    }
+    await rollback(apiClient, calendarId, created);
+    throw error;
+  }
 }
 
 /** Undo the first step of a two-step change; the original error is what the caller sees. */
@@ -345,12 +389,7 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
         let event: Event;
         if (input.scope === 'this') {
           event = await apiClient.createEvent(calendarId, { ...changed, parent_id: input.event_uuid });
-          try {
-            await apiClient.updateEvent(calendarId, input.event_uuid, { recurrences: addExdate(series.lines, at), silent: true });
-          } catch (error) {
-            await rollback(apiClient, calendarId, event);
-            throw error;
-          }
+          await finishSeriesUpdate(apiClient, calendarId, input.event_uuid, addExdate(series.lines, at), event);
           result = 'occurrence_event_created';
         } else {
           const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, changed.start_at - at);
@@ -365,12 +404,7 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
             result = 'whole_series_updated';
           } else {
             event = await apiClient.createEvent(calendarId, { ...changed, recurrences: input.recurrences ?? split.after });
-            try {
-              await apiClient.updateEvent(calendarId, input.event_uuid, { recurrences: split.before, silent: true });
-            } catch (error) {
-              await rollback(apiClient, calendarId, event);
-              throw error;
-            }
+            await finishSeriesUpdate(apiClient, calendarId, input.event_uuid, split.before, event);
             result = 'new_series_created';
           }
         }

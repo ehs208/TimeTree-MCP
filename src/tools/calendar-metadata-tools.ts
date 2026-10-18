@@ -402,7 +402,7 @@ const VirtualMemberFieldsSchema = z.object({
   name: z.string().trim().min(1).optional(),
   type: z.enum(VIRTUAL_MEMBER_TYPES).optional(),
   one_word: z.string().optional(),
-  birthday: BirthdaySchema.optional(),
+  birthday: BirthdaySchema.nullable().optional(),
   shows_birthday: z.boolean().optional(),
 });
 
@@ -425,7 +425,7 @@ const VIRTUAL_MEMBER_FIELD_PROPERTIES = {
   name: { type: 'string', description: 'Display name' },
   type: { type: 'string', enum: [...VIRTUAL_MEMBER_TYPES], description: 'Kind of member (default: other)' },
   one_word: { type: 'string', description: 'Short description, e.g. "eldest son" or "toy poodle"' },
-  birthday: { type: 'string', description: 'Birthday as YYYY-MM-DD' },
+  birthday: { type: ['string', 'null'], description: 'Birthday as YYYY-MM-DD; null removes it' },
   shows_birthday: { type: 'boolean', description: 'Show the birthday on the calendar' },
 } as const;
 

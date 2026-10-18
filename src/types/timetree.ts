@@ -70,7 +70,8 @@ export interface VirtualUserInput {
   name?: string;
   account_type?: (typeof VIRTUAL_MEMBER_TYPES)[number];
   one_word?: string;
-  birthday?: string;
+  /** null removes the birthday (update only). */
+  birthday?: string | null;
   shows_birthday?: boolean;
 }
 
