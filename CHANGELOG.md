@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-18
+
 ### Added
 - `update_event_occurrence` and `delete_event_occurrence` change or delete one occurrence of a recurring event, or it and every later one, the way the TimeTree app does. Earlier occurrences are not touched, and a failed second step removes the event created in the first.
 - `copy_event` copies an event to a new time, optionally into another calendar.
