@@ -278,6 +278,26 @@ test('update_event_occurrence carries the remaining COUNT into a supplied rule a
   assert.match(parse(moved).message, /Pass recurrences/);
 });
 
+test('update_event_occurrence restarts an all-excluded series at the occurrence for a new rule', async () => {
+  const monday = Date.parse('2026-10-19T01:00:00Z');
+  const client = fakeClient({
+    getEvent: async () => series({
+      start_at: monday, end_at: monday + HOUR, recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=MO', 'EXDATE:20261019T010000Z'],
+    }),
+  });
+  const at = monday + 7 * 24 * HOUR;
+  const result = parse(await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: at, scope: 'this_and_following',
+    recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=MO,WE'],
+  }));
+
+  const [, , , update] = client.calls.find(([method]) => method === 'updateEvent');
+  assert.equal(result.result, 'whole_series_updated');
+  assert.equal(update.start_at, at);
+  assert.equal(update.end_at, at + HOUR);
+  assert.deepEqual(update.recurrences, ['RRULE:FREQ=WEEKLY;BYDAY=MO,WE']);
+});
+
 test('occurrence and copy events keep map coordinates unless the location changes', async () => {
   const placed = () => series({ location: 'Office', location_lat: 37.5, location_lon: 127 });
 

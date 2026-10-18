@@ -282,3 +282,11 @@ test('withSplitBounds keeps the split COUNT, UNTIL, and exclusions unless the ne
     'EXDATE:20261104T010000Z',
   ]);
 });
+
+test('splitRecurrence maps exclusions into a new time zone', () => {
+  // A UTC daily 14:00 series moved to New York keeps 09:00 local, which is 13:00Z after DST.
+  const lines = ['RRULE:FREQ=DAILY', 'EXDATE:20260320T140000Z'];
+  const timing = { start: Date.parse('2026-03-01T14:00:00Z'), timeZone: 'UTC' };
+  const split = splitRecurrence(lines, parseRecurrence(lines), timing, Date.parse('2026-03-02T14:00:00Z'), 0, 'America/New_York');
+  assert.deepEqual(split.after, ['RRULE:FREQ=DAILY', 'EXDATE:20260320T130000Z']);
+});

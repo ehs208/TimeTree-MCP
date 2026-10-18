@@ -471,22 +471,29 @@ export function shiftNeedsNewRule(
 }
 
 /**
- * Move instants the way moving occurrence `at` to `at + shift` moves the series: by the same
- * wall-clock change, so later times stay on the rule across a DST transition.
+ * Move instants the way moving occurrence `at` to `at + shift` (in `newTimeZone`) moves the
+ * series: by the same wall-clock change, so later times stay on the rule across a DST
+ * transition or a time zone change.
  */
-function wallClockMover(timing: SeriesTiming, at: number, shift: number): (instant: number) => number {
-  const formatter = formatterFor(timing.timeZone);
-  const wall = (instant: number) => {
+function wallClockMover(
+  timing: SeriesTiming,
+  at: number,
+  shift: number,
+  newTimeZone: string | undefined
+): (instant: number) => number {
+  const source = formatterFor(timing.timeZone);
+  const target = formatterFor(newTimeZone);
+  const wall = (instant: number, formatter: Intl.DateTimeFormat) => {
     const local = toLocal(instant, formatter);
     return Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second);
   };
-  const delta = wall(at + shift) - wall(at);
+  const delta = wall(at + shift, target) - wall(at, source);
   return (instant) => {
-    const moved = new Date(wall(instant) + delta);
+    const moved = new Date(wall(instant, source) + delta);
     return fromLocal(
       { year: moved.getUTCFullYear(), month: moved.getUTCMonth() + 1, day: moved.getUTCDate() },
       { hour: moved.getUTCHours(), minute: moved.getUTCMinutes(), second: moved.getUTCSeconds() },
-      formatter
+      target
     );
   };
 }
@@ -521,7 +528,8 @@ function shiftedUntil(
   recurrence: ParsedRecurrence,
   timing: SeriesTiming,
   at: number,
-  move: (instant: number) => number
+  move: (instant: number) => number,
+  newTimeZone: string | undefined
 ): string | null {
   const { rule } = recurrence;
   if (!rule.untilDate) return rule.until === undefined ? null : formatUtcDateTime(move(rule.until));
@@ -529,7 +537,7 @@ function shiftedUntil(
   const remaining = occurrencesBetween({ rule, exdates: new Set() }, timing, at, Number.POSITIVE_INFINITY);
   const last = remaining[remaining.length - 1];
   if (last === undefined) return null;
-  const day = toLocal(move(last), formatterFor(timing.timeZone));
+  const day = toLocal(move(last), formatterFor(newTimeZone));
   return `${day.year}${pad(day.month)}${pad(day.day)}`;
 }
 
@@ -539,7 +547,8 @@ export function splitRecurrence(
   recurrence: ParsedRecurrence,
   timing: SeriesTiming,
   at: number,
-  shift = 0
+  shift = 0,
+  newTimeZone = timing.timeZone
 ): SeriesSplit {
   const earlier = occurrencesBetween(recurrence, timing, Number.NEGATIVE_INFINITY, at);
   const last = earlier[earlier.length - 1];
@@ -561,12 +570,13 @@ export function splitRecurrence(
     Number.NEGATIVE_INFINITY,
     at
   ).length;
-  const move = wallClockMover(timing, at, shift);
+  const moves = shift !== 0 || newTimeZone !== timing.timeZone;
+  const move = wallClockMover(timing, at, shift, newTimeZone);
   const rule = rewriteRule(
     lines.filter((line) => line.toUpperCase().startsWith('RRULE:')),
     (parts) => parts.map(([key, value]): [string, string] => {
       if (key === 'COUNT') return [key, String(Math.max(1, Number(value) - generatedBefore))];
-      if (key === 'UNTIL' && shift !== 0) return [key, shiftedUntil(recurrence, timing, at, move) ?? value];
+      if (key === 'UNTIL' && moves) return [key, shiftedUntil(recurrence, timing, at, move, newTimeZone) ?? value];
       return [key, value];
     })
   );

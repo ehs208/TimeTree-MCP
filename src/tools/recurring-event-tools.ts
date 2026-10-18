@@ -439,14 +439,15 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
                 'Pass recurrences with the new rule, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=TU"].'
             );
           }
-          const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, shift);
+          const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, shift, newTimeZone);
           if (!split.before) {
-            // Earlier occurrences may all be deleted; a moved start then needs the reduced COUNT.
-            const lines = input.start_at === undefined ? series.lines : split.after;
-            const recurrences = input.recurrences
-              ? withSplitBounds(input.recurrences, lines)
-              : input.start_at === undefined ? undefined : split.after;
-            const { title, start_at, end_at, start_timezone, end_timezone, label_id, note, location, url, attendees,
+            // When every earlier occurrence was deleted, the series is restarted at this one so
+            // the rule cannot bring back earlier dates, and COUNT is the reduced one.
+            const start_at = input.start_at ?? (at === series.event.start_at ? undefined : at);
+            const recurrences = start_at === undefined
+              ? input.recurrences && withSplitBounds(input.recurrences, series.lines)
+              : input.recurrences ? withSplitBounds(input.recurrences, split.after) : split.after;
+            const { title, end_at, start_timezone, end_timezone, label_id, note, location, url, attendees,
               alerts } = input;
             event = await apiClient.updateEvent(calendarId, input.event_uuid, {
               title, start_at, end_at: end_at ?? (start_at === undefined ? undefined : changed.end_at),
