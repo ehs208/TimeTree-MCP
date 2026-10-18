@@ -152,6 +152,12 @@ Write requests need a CSRF token, which the server reads from the TimeTree web p
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Thanks to everyone who has contributed.
+
+<a href="https://github.com/ehs208/TimeTree-MCP/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ehs208/TimeTree-MCP" alt="Contributors">
+</a>
+
 ## Credits
 
 API insights from [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) by [@eoleedi](https://github.com/eoleedi).

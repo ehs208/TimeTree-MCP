@@ -152,6 +152,12 @@ GUI 클라이언트가 `node`를 찾지 못하면 `command -v node`로 나온 �
 
 이슈와 PR을 환영합니다. [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하십시오.
 
+기여해 주신 모든 분께 감사드립니다.
+
+<a href="https://github.com/ehs208/TimeTree-MCP/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ehs208/TimeTree-MCP" alt="기여자">
+</a>
+
 ## 크레딧
 
 [@eoleedi](https://github.com/eoleedi)의 [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter)에서 API 분석 결과를 참고했습니다.

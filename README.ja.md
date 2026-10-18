@@ -152,6 +152,12 @@ GUI クライアントが `node` を見つけられない場合は、`command -v
 
 Issue と Pull Request を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
+コントリビュートしてくださった皆さんに感謝します。
+
+<a href="https://github.com/ehs208/TimeTree-MCP/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ehs208/TimeTree-MCP" alt="コントリビューター">
+</a>
+
 ## クレジット
 
 [@eoleedi](https://github.com/eoleedi) による [TimeTree-Exporter](https://github.com/eoleedi/TimeTree-Exporter) の API に関する知見を参考にしています。
