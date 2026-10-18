@@ -95,18 +95,19 @@ TimeTree-MCP/
 │   │   ├── logger.ts             # Structured logging (stderr only)
 │   │   ├── http-client.ts        # HTTP wrapper (native fetch)
 │   │   ├── rate-limiter.ts       # Token bucket rate limiter
-│   │   ├── recurrence.ts         # RRULE/EXDATE expansion for get_events
+│   │   ├── recurrence.ts         # RRULE/EXDATE expansion and series edits
 │   │   └── update-check.ts       # Startup check for a newer version
 │   ├── client/
 │   │   ├── auth.ts               # Authentication + CSRF token manager
 │   │   └── api.ts                # TimeTree API client (read + CRUD)
 │   ├── tools/
 │   │   ├── index.ts                   # Tool registration
-│   │   ├── shared-schemas.ts          # Shared input schemas (calendar_id)
-│   │   ├── calendar-tools.ts          # list_calendars
+│   │   ├── shared-schemas.ts          # Shared schemas, annotations, output schemas
+│   │   ├── calendar-tools.ts          # list_calendars, create_calendar, get_current_user
 │   │   ├── calendar-metadata-tools.ts # labels, members, virtual members
 │   │   ├── event-tools.ts             # get_events, get_updated_events
-│   │   ├── event-crud-tools.ts        # create_event, update_event, delete_event
+│   │   ├── event-crud-tools.ts        # create_event, update_event, copy_event, delete_event
+│   │   ├── recurring-event-tools.ts   # update/delete one occurrence of a recurring event
 │   │   ├── memo-tools.ts              # list/create/update/delete memos
 │   │   ├── comment-tools.ts           # event comments
 │   │   ├── holiday-tools.ts           # get_holidays

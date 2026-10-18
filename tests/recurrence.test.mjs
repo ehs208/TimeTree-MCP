@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expandRecurrence, parseRecurrence } from '../.test-dist/utils/recurrence.js';
+import {
+  addExdate,
+  expandRecurrence,
+  isOccurrence,
+  parseRecurrence,
+  splitRecurrence,
+} from '../.test-dist/utils/recurrence.js';
 
 const iso = (ms) => new Date(ms).toISOString();
 
@@ -29,6 +35,20 @@ test('weekly BYDAY with COUNT and EXDATE matches the TimeTree web app', () => {
 
   // EXDATE removes an occurrence but still counts toward COUNT.
   assert.deepEqual(occurrences, ['2026-10-13T01:00:00.000Z', '2026-10-20T01:00:00.000Z', '2026-10-22T01:00:00.000Z']);
+});
+
+test('date-only UNTIL includes the whole local day, as the web app writes it', () => {
+  // Observed: "Delete this and future events" on the Oct 22 occurrence of a daily
+  // 10:00 KST series rewrites the rule to UNTIL=20261020 (Oct 21 was already excluded).
+  const occurrences = expand(
+    ['RRULE:FREQ=DAILY;UNTIL=20261020', 'EXDATE:20261021T010000Z,20261023T010000Z'],
+    '2026-10-20T01:00:00Z',
+    'Asia/Seoul',
+    '2026-10-01T00:00:00Z',
+    '2026-11-01T00:00:00Z'
+  );
+
+  assert.deepEqual(occurrences, ['2026-10-20T01:00:00.000Z']);
 });
 
 test('all-day daily series honors date EXDATE', () => {
@@ -163,4 +183,48 @@ test('unsupported rules are not expanded', () => {
   assert.equal(parseRecurrence(['RRULE:FREQ=DAILY', 'RDATE:20261020T000000Z']), null);
   assert.equal(parseRecurrence([]), null);
   assert.equal(parseRecurrence(undefined), null);
+});
+
+test('addExdate appends to the existing EXDATE line like the web app', () => {
+  // Observed after "Delete only this event" on Oct 21, then on Oct 23.
+  const first = addExdate(['RRULE:FREQ=DAILY;COUNT=4'], Date.parse('2026-10-21T01:00:00Z'));
+  assert.deepEqual(first, ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261021T010000Z']);
+
+  const second = addExdate(first, Date.parse('2026-10-23T01:00:00Z'));
+  assert.deepEqual(second, ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261021T010000Z,20261023T010000Z']);
+  assert.deepEqual(addExdate(second, Date.parse('2026-10-23T01:00:00Z')), second);
+});
+
+test('isOccurrence rejects excluded and off-rule times', () => {
+  const lines = ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261021T010000Z'];
+  const timing = { start: Date.parse('2026-10-20T01:00:00Z'), timeZone: 'Asia/Seoul' };
+  const parsed = parseRecurrence(lines);
+
+  assert.equal(isOccurrence(parsed, timing, Date.parse('2026-10-22T01:00:00Z')), true);
+  assert.equal(isOccurrence(parsed, timing, Date.parse('2026-10-21T01:00:00Z')), false);
+  assert.equal(isOccurrence(parsed, timing, Date.parse('2026-10-22T02:00:00Z')), false);
+  assert.equal(isOccurrence(parsed, timing, Date.parse('2026-10-24T01:00:00Z')), false);
+});
+
+test('splitRecurrence ends the series the way "delete this and future events" does', () => {
+  // Observed: deleting Oct 22 and later turned COUNT=4 into UNTIL=20261020, keeping EXDATE.
+  const lines = ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261021T010000Z,20261023T010000Z'];
+  const timing = { start: Date.parse('2026-10-20T01:00:00Z'), timeZone: 'Asia/Seoul' };
+  const split = splitRecurrence(lines, parseRecurrence(lines), timing, Date.parse('2026-10-22T01:00:00Z'));
+
+  assert.deepEqual(split.before, ['RRULE:FREQ=DAILY;UNTIL=20261020', 'EXDATE:20261021T010000Z,20261023T010000Z']);
+  // The new series keeps the remaining COUNT (Oct 22, 23) and the later exclusion.
+  assert.deepEqual(split.after, ['RRULE:FREQ=DAILY;COUNT=2', 'EXDATE:20261023T010000Z']);
+});
+
+test('splitRecurrence moves later exclusions with a new start time and reports a first-occurrence split', () => {
+  const lines = ['RRULE:FREQ=WEEKLY;BYDAY=MO', 'EXDATE:20261102T010000Z'];
+  const timing = { start: Date.parse('2026-10-19T01:00:00Z'), timeZone: 'Asia/Seoul' };
+  const parsed = parseRecurrence(lines);
+
+  const moved = splitRecurrence(lines, parsed, timing, Date.parse('2026-10-26T01:00:00Z'), 60 * 60 * 1000);
+  assert.deepEqual(moved.before, ['RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019', 'EXDATE:20261102T010000Z']);
+  assert.deepEqual(moved.after, ['RRULE:FREQ=WEEKLY;BYDAY=MO', 'EXDATE:20261102T020000Z']);
+
+  assert.equal(splitRecurrence(lines, parsed, timing, timing.start).before, null);
 });

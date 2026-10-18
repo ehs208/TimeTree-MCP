@@ -36,7 +36,8 @@ Ask your AI assistant things like:
 ## What it does
 
 - **Reads your calendars.** Events with date, keyword, and label filters. Recurring events are expanded into their actual dates.
-- **Changes them when you ask.** Create, update, and delete events, memos, and comments, and rename or recolor labels.
+- **Changes them when you ask.** Create, update, copy, and delete events, memos, and comments, and rename or recolor labels. Change or delete a single occurrence of a recurring event, or it and the ones after it.
+- **Manages virtual members.** Add, rename, or remove members without a TimeTree account, such as children or pets.
 - **Keeps you up to date.** See what changed since a given time, and who made recent changes.
 - **Knows the context.** Calendar members and public holidays by country.
 - **Runs on your computer.** Your email and password are sent only to TimeTree. The session stays in memory.
@@ -113,11 +114,12 @@ Details: [docs/UPDATING.md](docs/UPDATING.md). Changes: [CHANGELOG.md](CHANGELOG
 
 | Area | Tools |
 |---|---|
-| Calendars | `list_calendars`, `create_calendar` |
-| Events | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
+| Calendars | `list_calendars`, `create_calendar`, `get_current_user` |
+| Events | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event`, `copy_event` |
+| Recurring events | `update_event_occurrence`, `delete_event_occurrence` |
 | Memos | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
 | Comments | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
-| Labels and members | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members` |
+| Labels and members | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members`, `create_virtual_member`, `update_virtual_member`, `delete_virtual_member` |
 | Other | `get_holidays`, `get_recent_activity` |
 
 Parameters and examples: [COMMANDS.md](COMMANDS.md)

@@ -8,11 +8,44 @@ import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
 import { getLabelColorName } from '../types/label-colors.js';
-import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
+import {
+  CALENDAR_ID_JSON_SCHEMA,
+  CalendarIdSchema,
+  ISO_DATE_TIME,
+  LABEL_ID_DESCRIPTION,
+  READ_ONLY,
+} from './shared-schemas.js';
 import { expandRecurrence, parseRecurrence } from '../utils/recurrence.js';
 import type { Event } from '../types/timetree.js';
 
 const MAX_OCCURRENCES_PER_EVENT = 500;
+
+const nullable = (type: string) => ({ type: [type, 'null'] });
+
+/** One row of get_events / get_updated_events output. */
+const LISTED_EVENT_PROPERTIES = {
+  uuid: { type: 'string' },
+  title: { type: 'string' },
+  start_at: ISO_DATE_TIME,
+  start_timezone: nullable('string'),
+  end_at: ISO_DATE_TIME,
+  end_timezone: nullable('string'),
+  all_day: { type: 'boolean' },
+  label_id: nullable('number'),
+  label_color: nullable('string'),
+  location: nullable('string'),
+  note: nullable('string'),
+  url: nullable('string'),
+  category: { type: ['number', 'null'], description: '1 = event, 2 = memo' },
+  attendees: { type: 'array', items: { type: 'number' } },
+  alerts: { type: 'array' },
+  recurrences: { type: 'array', items: { type: 'string' } },
+  has_recurrence: { type: 'boolean' },
+  checklist: { type: ['array', 'null'] },
+  virtual_user_attendees: { type: 'array' },
+  created_at: nullable('string'),
+  updated_at: nullable('string'),
+} as const;
 
 export const GetEventsInputSchema = z.object({
   calendar_id: CalendarIdSchema.describe('The calendar ID to fetch events from'),
@@ -61,13 +94,36 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_events',
     description:
-      'Get events from a specific TimeTree calendar, sorted by start time. Automatically handles pagination. ' +
-      'Supports filtering by start time range, keyword, label, and whether to include memos. ' +
-      'When start_before is set, recurring events are expanded into their occurrences within the range ' +
-      '(occurrences share the series uuid; editing one edits the whole series). ' +
-      'Returns event details including title, start/end times, location, notes, label color, and more. ' +
-      'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
-      '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
+      'Find events in a calendar by start time range, keyword, or label, sorted by start time. ' +
+      'Use this to answer "what is on my schedule"; use get_updated_events or get_recent_activity for "what changed". ' +
+      'Reads every page of the calendar, then filters; limit applies after sorting. Memos are included unless ' +
+      'include_memos is false (list_memos returns only memos). When start_before is set, recurring events are ' +
+      'expanded into each occurrence in the range. Occurrences share the series uuid, so update_event changes the ' +
+      'whole series; use update_event_occurrence or delete_event_occurrence with the occurrence start_at to change one.',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: { type: 'string' },
+        events: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ...LISTED_EVENT_PROPERTIES,
+              is_recurring_occurrence: { type: 'boolean', description: 'Present on expanded occurrences of a series' },
+              series_start_at: ISO_DATE_TIME,
+            },
+            required: ['uuid', 'title', 'start_at', 'end_at', 'all_day'],
+          },
+        },
+        total: { type: 'number' },
+        total_fetched: { type: 'number' },
+        truncated_series: { type: 'array', items: { type: 'string' } },
+        truncation_note: { type: 'string' },
+      },
+      required: ['calendar_id', 'events', 'total'],
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -88,7 +144,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
         },
         label_id: {
           type: 'number',
-          description: 'Optional label ID (1-10) filter.',
+          description: `Optional label filter. ${LABEL_ID_DESCRIPTION}`,
         },
         include_memos: {
           type: 'boolean',
@@ -101,7 +157,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
         },
         limit: {
           type: 'number',
-          description: 'Optional limit on number of events to return.',
+          description: 'Optional maximum number of events to return, counted after filtering and sorting.',
         },
       },
       required: ['calendar_id'],
@@ -288,12 +344,32 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_updated_events',
     description:
-      'Get events from a specific TimeTree calendar that were updated after a specified time. ' +
-      'Useful for finding recently modified events. Deleted events are included with deleted: true. ' +
-      'Returns event details including title, start/end times, ' +
-      'location, notes, label color, and more. ' +
-      'Label colors (label_id 1-10): 1=Emerald green, 2=Modern cyan, 3=Deep sky blue, 4=Pastel brown, ' +
-      '5=Midnight black, 6=Apple red, 7=French rose, 8=Coral pink, 9=Bright orange, 10=Soft violet.',
+      'List events and memos changed after a point in time, with their current content. Deleted ones are ' +
+      'included with deleted: true. Use this to sync or review changes since a time; use get_recent_activity to ' +
+      'see who changed what, and get_events to look up a schedule. Recurring events are returned once, not expanded.',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: { type: 'string' },
+        updated_after: ISO_DATE_TIME,
+        events: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ...LISTED_EVENT_PROPERTIES,
+              deleted: { type: 'boolean' },
+              deleted_at: nullable('string'),
+            },
+            required: ['uuid', 'title', 'start_at', 'end_at', 'all_day', 'deleted'],
+          },
+        },
+        total: { type: 'number' },
+        total_fetched: { type: 'number' },
+      },
+      required: ['calendar_id', 'updated_after', 'events', 'total'],
+    },
     inputSchema: {
       type: 'object',
       properties: {

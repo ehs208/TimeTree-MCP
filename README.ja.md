@@ -36,7 +36,8 @@ AI アシスタントに次のように聞くだけです。
 ## できること
 
 - **カレンダーを読む。** 日付、キーワード、ラベルで予定を絞り込み、繰り返し予定は実際の日付に展開します。
-- **頼めば変更する。** 予定、メモ、コメントの作成、更新、削除と、ラベル名や色の変更ができます。
+- **頼めば変更する。** 予定、メモ、コメントの作成、更新、コピー、削除と、ラベル名や色の変更ができます。繰り返し予定は1回分だけ、またはその回以降をまとめて変更・削除できます。
+- **バーチャルメンバーを管理する。** 子どもやペットなど TimeTree アカウントのないメンバーを追加、変更、削除できます。
 - **変更を把握する。** ある時点以降に変わった予定と、最近だれが何を変えたかを確認できます。
 - **文脈がわかる。** カレンダーのメンバーと国ごとの祝日を取得します。
 - **自分のパソコンで動く。** メールアドレスとパスワードは TimeTree にだけ送信し、セッションはメモリにだけ保持します。
@@ -113,11 +114,12 @@ GUI クライアントが `node` を見つけられない場合は、`command -v
 
 | 分類 | ツール |
 |---|---|
-| カレンダー | `list_calendars`, `create_calendar` |
-| 予定 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event` |
+| カレンダー | `list_calendars`, `create_calendar`, `get_current_user` |
+| 予定 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event`, `copy_event` |
+| 繰り返し予定 | `update_event_occurrence`, `delete_event_occurrence` |
 | メモ | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
 | コメント | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
-| ラベルとメンバー | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members` |
+| ラベルとメンバー | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members`, `create_virtual_member`, `update_virtual_member`, `delete_virtual_member` |
 | その他 | `get_holidays`, `get_recent_activity` |
 
 `create_calendar` は名前（1〜20文字）と用途の明示を必須とします。メンバー招待は行わず、タイムアウト・サーバーエラーでは再試行しません。

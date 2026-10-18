@@ -19,6 +19,7 @@ import type {
   CalendarVirtualUsersResponse,
   CalendarsResponse,
   CreateEventInput,
+  CurrentUser,
   CreateEventResponse,
   CreateMemoInput,
   Event,
@@ -33,14 +34,17 @@ import type {
   UpdateEventInput,
   UpdateEventResponse,
   UpdateMemoInput,
+  VirtualUserInput,
 } from '../types/timetree.js';
 import {
   CalendarLabelsResponseSchema,
   CalendarSchema,
   CalendarUsersResponseSchema,
+  CalendarVirtualUserResponseSchema,
   CalendarVirtualUsersResponseSchema,
   CalendarsResponseSchema,
   CreateEventResponseSchema,
+  CurrentUserResponseSchema,
   EventActivitiesResponseSchema,
   EventActivityResponseSchema,
   EventsSyncResponseSchema,
@@ -139,6 +143,16 @@ function needsReauthentication(error: unknown): boolean {
   if (statusCode === 401) return true;
   const code = getTimeTreeErrorCode(error);
   return code === TIMETREE_ERROR.SESSION_REJECTED || code === TIMETREE_ERROR.CSRF_REJECTED;
+}
+
+/** The web app refuses to add more virtual members than this. */
+const MAX_VIRTUAL_MEMBERS = 10;
+
+/** TimeTree rejects shows_birthday on a virtual member without a birthday. */
+function requireBirthdayForVisibility(body: { birthday?: unknown; shows_birthday?: unknown }): void {
+  if (body.shows_birthday !== undefined && body.birthday == null) {
+    throw new TimeTreeAPIError('shows_birthday needs a birthday; set birthday as well', 400);
+  }
 }
 
 function createClientUuid(): string {
@@ -627,6 +641,111 @@ export class TimeTreeAPIClient {
       throw new TimeTreeAPIError(
         `Failed to fetch calendar virtual users: ${getErrorMessage(error)}`
       );
+    }
+  }
+
+  /**
+   * Add a virtual member (a child, pet, or car without a TimeTree account). The web app
+   * allows at most 10 per calendar and checks that before sending, so this does too.
+   */
+  async createVirtualUser(calendarId: string, input: VirtualUserInput): Promise<CalendarVirtualUser> {
+    const existing = await this.getCalendarVirtualUsers(calendarId);
+    if (existing.filter((member) => !member.deactivated_at).length >= MAX_VIRTUAL_MEMBERS) {
+      throw new TimeTreeAPIError(`A calendar can have at most ${MAX_VIRTUAL_MEMBERS} virtual members`, 400);
+    }
+
+    logger.info('Creating calendar virtual user', { calendarId });
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_VIRTUAL_USERS(calendarId)}`;
+    const body = { account_type: 'other', one_word: '', ...input };
+    requireBirthdayForVisibility(body);
+
+    try {
+      const response = await this.send(() =>
+        this.authManager.getHttpClient().post<unknown>(url, body, undefined, true)
+      );
+      return CalendarVirtualUserResponseSchema.parse(response).calendar_virtual_user;
+    } catch (error) {
+      throw this.virtualUserError(error, calendarId, 'create virtual member');
+    }
+  }
+
+  /**
+   * Update a virtual member, addressed by its uuid (TimeTree rejects the numeric id here).
+   * A PUT clears one_word, birthday, and shows_birthday when they are omitted, so the
+   * current values are sent along with the changes.
+   */
+  async updateVirtualUser(
+    calendarId: string,
+    virtualUserUuid: string,
+    input: VirtualUserInput
+  ): Promise<CalendarVirtualUser> {
+    const current = (await this.getCalendarVirtualUsers(calendarId)).find(
+      (member) => member.uuid === virtualUserUuid && !member.deactivated_at
+    );
+    if (!current) {
+      throw new TimeTreeAPIError('Virtual member not found. Use the uuid from get_calendar_virtual_members.', 404);
+    }
+
+    logger.info('Updating calendar virtual user', { calendarId, virtualUserUuid });
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_VIRTUAL_USER(calendarId, virtualUserUuid)}`;
+    const body = {
+      ...(current.name != null && { name: current.name }),
+      ...(current.account_type != null && { account_type: current.account_type }),
+      ...(current.one_word != null && { one_word: current.one_word }),
+      ...(current.birthday != null && { birthday: current.birthday, shows_birthday: current.shows_birthday ?? false }),
+      ...input,
+    };
+    requireBirthdayForVisibility(body);
+
+    try {
+      const response = await this.send(() =>
+        this.authManager.getHttpClient().put<unknown>(url, body, undefined, true)
+      );
+      return CalendarVirtualUserResponseSchema.parse(response).calendar_virtual_user;
+    } catch (error) {
+      throw this.virtualUserError(error, calendarId, 'update virtual member');
+    }
+  }
+
+  /** Remove a virtual member, addressed by its uuid. */
+  async deleteVirtualUser(calendarId: string, virtualUserUuid: string): Promise<void> {
+    await this.ensureAuthenticated();
+
+    logger.info('Deleting calendar virtual user', { calendarId, virtualUserUuid });
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CALENDAR_VIRTUAL_USER(calendarId, virtualUserUuid)}`;
+
+    try {
+      await this.send(() => this.authManager.getHttpClient().delete(url, undefined, undefined, true));
+    } catch (error) {
+      throw this.virtualUserError(error, calendarId, 'delete virtual member');
+    }
+  }
+
+  private virtualUserError(error: unknown, calendarId: string, action: string): Error {
+    if (getTimeTreeErrorCode(error) === TIMETREE_ERROR.CALENDAR_NOT_FOUND) {
+      return new InvalidCalendarError(calendarId);
+    }
+    if (isRecordNotFound(error)) {
+      return new TimeTreeAPIError('Virtual member not found. Use the uuid from get_calendar_virtual_members.', 404);
+    }
+    if (isCsrfRejected(error)) {
+      return new TimeTreeAPIError('CSRF token missing or invalid - re-authentication required', 403);
+    }
+    logger.error(`Failed to ${action}`, { calendarId, error });
+    return new TimeTreeAPIError(`Failed to ${action}: ${getErrorMessage(error)}`, getStatusCode(error));
+  }
+
+  /** The signed-in TimeTree user. */
+  async getCurrentUser(): Promise<CurrentUser> {
+    await this.ensureAuthenticated();
+
+    const url = `${TIMETREE_CONFIG.BASE_URL}${TIMETREE_CONFIG.ENDPOINTS.CURRENT_USER}`;
+    try {
+      const response = await this.send(() => this.authManager.getHttpClient().get<unknown>(url));
+      return CurrentUserResponseSchema.parse(response).user;
+    } catch (error) {
+      logger.error('Failed to fetch current user', { error });
+      throw new TimeTreeAPIError(`Failed to fetch current user: ${getErrorMessage(error)}`, getStatusCode(error));
     }
   }
 

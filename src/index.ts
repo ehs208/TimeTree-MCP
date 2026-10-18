@@ -15,10 +15,19 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { TimeTreeAuthManager } from './client/auth.js';
 import { TimeTreeAPIClient } from './client/api.js';
-import { registerTools } from './tools/index.js';
+import { registerTools, toolResult } from './tools/index.js';
 import { logger, summarizeToolArguments } from './utils/logger.js';
 import { SERVER_VERSION as VERSION } from './config/config.js';
 import { fetchNewerVersion, formatUpdateNotice } from './utils/update-check.js';
+
+/** Read by clients before the tool list: the workflow the tool descriptions assume. */
+const SERVER_INSTRUCTIONS = [
+  'TimeTree calendar tools (unofficial). Start with list_calendars; every other tool needs its calendar_id.',
+  'Times are Unix milliseconds in inputs and ISO 8601 (UTC) in outputs; pass a time zone such as "Asia/Seoul" when creating events.',
+  'Memos are notes without a schedule: use the memo tools for them and the event tools for events.',
+  'Recurring events: get_events with start_before expands occurrences that share the series uuid. update_event and delete_event change the whole series; update_event_occurrence and delete_event_occurrence change one occurrence or it and the ones after it.',
+  'Writes are visible to everyone in the calendar. Confirm before deleting.',
+].join('\n');
 
 /**
  * Validate required environment variables
@@ -77,6 +86,7 @@ async function main() {
       capabilities: {
         tools: {},
       },
+      instructions: SERVER_INSTRUCTIONS,
     }
   );
 
@@ -101,6 +111,8 @@ async function main() {
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
+        annotations: tool.annotations,
       })),
     };
   });
@@ -119,7 +131,7 @@ async function main() {
     }
 
     try {
-      const result = await tool.handler(args);
+      const result = toolResult(tool, await tool.handler(args));
       if (!updateNotice) {
         return result;
       }

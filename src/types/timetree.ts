@@ -47,7 +47,13 @@ export type CalendarUser = z.infer<typeof CalendarUserSchema>;
 
 export const CalendarVirtualUserSchema = z.object({
   id: z.union([z.string(), z.number()]),
+  /** Update and delete address a virtual member by uuid; the id is rejected. */
+  uuid: z.string().optional(),
   name: z.string().optional().nullable(),
+  account_type: z.string().optional().nullable(),
+  one_word: z.string().optional().nullable(),
+  birthday: z.union([z.string(), z.number()]).optional().nullable(),
+  shows_birthday: z.boolean().optional().nullable(),
   calendar_id: z.number().optional(),
   deactivated_at: z.number().nullable().optional(),
   created_at: z.number().optional(),
@@ -55,6 +61,33 @@ export const CalendarVirtualUserSchema = z.object({
 }).passthrough();
 
 export type CalendarVirtualUser = z.infer<typeof CalendarVirtualUserSchema>;
+
+/** Types the web app offers for virtual members. */
+export const VIRTUAL_MEMBER_TYPES = ['child', 'pet', 'car', 'grandfather', 'grandmother', 'other'] as const;
+
+/** Fields accepted when creating or updating a virtual member. Birthday is YYYY-MM-DD. */
+export interface VirtualUserInput {
+  name?: string;
+  account_type?: (typeof VIRTUAL_MEMBER_TYPES)[number];
+  one_word?: string;
+  birthday?: string;
+  shows_birthday?: boolean;
+}
+
+export const CalendarVirtualUserResponseSchema = z.object({
+  calendar_virtual_user: CalendarVirtualUserSchema,
+}).passthrough();
+
+export const CurrentUserSchema = z.object({
+  id: z.number(),
+  name: z.string().optional().nullable(),
+}).passthrough();
+
+export type CurrentUser = z.infer<typeof CurrentUserSchema>;
+
+export const CurrentUserResponseSchema = z.object({
+  user: CurrentUserSchema,
+}).passthrough();
 
 export const CalendarLabelSchema = z.object({
   id: z.number(),
@@ -112,6 +145,9 @@ export const EventSchema = z.object({
   recurrences: z.array(z.any()).optional(),
   alerts: z.array(z.any()).optional(),
   attachment: EventAttachmentInputSchema.optional().nullable(),
+  /** Set on an occurrence edited separately: the uuid of its recurring series. */
+  parent_id: z.string().optional().nullable(),
+  files: z.array(z.object({ uuid: z.string() }).passthrough()).optional().nullable(),
   deactivated_at: z.number().optional().nullable(),
   created_at: z.number().optional(),
   updated_at: z.number().optional(),

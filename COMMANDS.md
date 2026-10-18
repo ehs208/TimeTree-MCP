@@ -7,11 +7,16 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 | Tool | Description |
 |------|-------------|
 | **list_calendars** | List all active calendars with participating users |
+| **create_calendar** | Create an empty calendar without inviting anyone |
+| **get_current_user** | Show your user ID and name |
 | **get_events** | Get events from a calendar (with date filtering) |
 | **get_updated_events** | Get recently modified or deleted events |
 | **create_event** | Create a new event |
-| **update_event** | Update an existing event |
-| **delete_event** | Delete an event |
+| **update_event** | Update an existing event (every occurrence of a recurring event) |
+| **delete_event** | Delete an event (every occurrence of a recurring event) |
+| **update_event_occurrence** | Change one occurrence of a recurring event, or it and the ones after it |
+| **delete_event_occurrence** | Delete one occurrence of a recurring event, or it and the ones after it |
+| **copy_event** | Copy an event to another date or calendar |
 | **list_memos** | List memos (category=2 all-day events) |
 | **create_memo** | Create a memo |
 | **update_memo** | Update a memo |
@@ -24,6 +29,9 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 | **update_calendar_labels** | Merge-update calendar label names/colors |
 | **get_calendar_members** | Get calendar members |
 | **get_calendar_virtual_members** | Get virtual members |
+| **create_virtual_member** | Add a virtual member (child, pet, car, ...) |
+| **update_virtual_member** | Change a virtual member |
+| **delete_virtual_member** | Remove a virtual member |
 | **get_holidays** | Get public holidays and memorial days for a date range |
 | **get_recent_activity** | See who recently created, changed, or deleted events and memos |
 
@@ -169,6 +177,56 @@ Permanently deletes an event. Cannot be undone. Returns a "not found" error if t
 
 ---
 
+### update_event_occurrence and delete_event_occurrence
+
+Change or delete one occurrence of a recurring event, or that occurrence and every later one, the way the TimeTree app does. Earlier occurrences are not touched. Find the occurrence with `get_events` (set `start_before` so recurring events are expanded) and pass its series `uuid` and `start_at`.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `calendar_id` | Yes | Calendar ID |
+| `event_uuid` | Yes | Series UUID (every occurrence from `get_events` has it) |
+| `occurrence_start_at` | Yes | The occurrence's `start_at` from `get_events` (ISO 8601), or Unix ms |
+| `scope` | No | `this` (default) or `this_and_following` |
+| fields to change | `update_event_occurrence` only | `title`, `start_at`, `end_at`, timezones, `label_id`, `note`, `location`, `url`, `attendees`, `alerts`, `checklist`, `virtual_user_attendees`; `recurrences` only with `this_and_following` |
+
+What happens in TimeTree:
+
+| Tool and scope | Result |
+|----------------|--------|
+| delete, `this` | The occurrence is excluded from the series (EXDATE). |
+| delete, `this_and_following` | The series ends on the day of the previous occurrence. From the first occurrence, the whole series is deleted. |
+| update, `this` | A separate event linked to the series (`parent_id`) replaces the occurrence. |
+| update, `this_and_following` | The series ends before the occurrence and a new series (new `uuid`) starts there with the changes. From the first occurrence, the whole series is changed. |
+
+Moving an occurrence with `start_at` keeps its length unless `end_at` is given. If the second step of an update fails, the event created in the first step is removed. Rules this server cannot expand (for example `BYSETPOS`) are rejected; change those in the TimeTree app.
+
+**Example prompts:**
+- "Move only this week's standup to 11 am"
+- "From next month, make the weekly review biweekly"
+- "Cancel the yoga class on the 15th, but keep the rest"
+- "Stop the daily standup after this Friday"
+
+---
+
+### copy_event
+
+Copies an event to a new start time, optionally into another calendar, as the app's Copy action does. Title, note, location, URL, label, reminders, and checklist are kept. Recurrence is not copied. Attendees, virtual attendees, and files are kept only within the same calendar.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `calendar_id` | Yes | Calendar ID of the original |
+| `event_uuid` | Yes | Event UUID of the original |
+| `start_at` | Yes | Start of the copy (Unix ms) |
+| `end_at` | No | End of the copy (default: same length as the original) |
+| `title` | No | Title of the copy (default: the original title) |
+| `target_calendar_id` | No | Calendar to copy into (default: the same calendar) |
+
+**Example prompts:**
+- "Copy last week's team dinner to next Friday"
+- "Copy the dentist appointment into the Family calendar"
+
+---
+
 ### memo tools
 
 Manage TimeTree memos, which are stored by TimeTree as `category=2` all-day events.
@@ -190,7 +248,7 @@ Manage TimeTree memos, which are stored by TimeTree as `category=2` all-day even
 
 ### event comment tools
 
-Manage comments using TimeTree event activity endpoints.
+Comments are visible to everyone in the calendar. TimeTree lets only a comment's author edit or delete it. Get `comment_id` from `list_event_comments`.
 
 | Tool | Key parameters |
 |------|----------------|
@@ -209,6 +267,21 @@ Manage comments using TimeTree event activity endpoints.
 | `update_calendar_labels` | `calendar_id`, `labels: [{id, name?, color?}]` (omitted labels are preserved) |
 | `get_calendar_members` | `calendar_id`, optional `include_deactivated` |
 | `get_calendar_virtual_members` | `calendar_id`, optional `include_deactivated` |
+| `create_virtual_member` | `calendar_id`, `name`, optional `type`, `one_word`, `birthday`, `shows_birthday` |
+| `update_virtual_member` | `calendar_id`, `virtual_member_uuid`, fields to change |
+| `delete_virtual_member` | `calendar_id`, `virtual_member_uuid` |
+| `get_current_user` | *(none)* |
+
+Virtual members are people or things without a TimeTree account, such as a child, pet, or car. `type` is one of `child`, `pet`, `car`, `grandfather`, `grandmother`, `other` (default). `birthday` is `YYYY-MM-DD`; `shows_birthday` needs a birthday. A calendar can have at most 10 virtual members.
+
+`get_calendar_virtual_members` returns two identifiers: put `id` in an event's `virtual_user_attendees`, and use `uuid` as `virtual_member_uuid` to update or delete. Updating resends the member's current fields with the changes, because TimeTree clears the short description and birthday when they are left out.
+
+`get_current_user` returns only your `user_id` and name. `user_id` matches `user_id` in `get_calendar_members`, event `attendees`, and comment authors.
+
+**Example prompts:**
+- "Add our dog Coco to the Family calendar as a pet"
+- "Assign Saturday's vet visit to Coco"
+- "Which of these events am I attending?"
 
 ---
 
@@ -290,7 +363,8 @@ Events can be color-coded with `label_id` 1-10:
 
 - **All-day events**: TimeTree uses inclusive end dates. A Feb 15-16 event sets `end_at` to Feb 16 00:00, not Feb 17.
 - **Timezones**: Default is UTC. Specify timezone for accurate local times.
-- **Write operations** (create/update/delete) require a CSRF token, which is managed automatically.
+- **Write operations** are visible to everyone who shares the calendar.
+- **Structured output**: every tool declares an output schema and returns the same JSON as `structuredContent`, and declares MCP annotations (read-only, destructive, idempotent).
 
 ### Create a calendar
 

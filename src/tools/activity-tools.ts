@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
-import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
+import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema, READ_ONLY } from './shared-schemas.js';
 
 /**
  * Activity status codes observed in the TimeTree web app's activity panel.
@@ -55,9 +55,47 @@ export function createGetRecentActivityTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_recent_activity',
     description:
-      'Get recently changed events and memos in a calendar, newest first, with who changed what ' +
-      '(created, title/date/label/note/location/reminder/URL/checklist updated, deleted). ' +
-      'TimeTree keeps only the last few activities per event. Read-only.',
+      'See who recently created, changed, or deleted events and memos in a calendar, newest first ' +
+      '(created, title/date/label/note/location/reminder/URL/checklist updated, deleted), with member names. ' +
+      'TimeTree keeps only the last few activities per event, so this is a recent feed, not full history. ' +
+      'Use get_updated_events for the current content of changed events.',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: { type: 'string' },
+        events: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              uuid: { type: 'string' },
+              title: { type: 'string' },
+              kind: { type: 'string', enum: ['event', 'memo'] },
+              start_at: { type: ['string', 'null'] },
+              all_day: { type: ['boolean', 'null'] },
+              deleted: { type: 'boolean' },
+              activities: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    actions: { type: 'array', items: { type: 'string' } },
+                    user_id: { type: ['number', 'null'] },
+                    user_name: { type: ['string', 'null'] },
+                    at: { type: 'string' },
+                  },
+                  required: ['actions', 'at'],
+                },
+              },
+            },
+            required: ['uuid', 'title', 'kind', 'deleted', 'activities'],
+          },
+        },
+        total: { type: 'number' },
+      },
+      required: ['calendar_id', 'events', 'total'],
+    },
     inputSchema: {
       type: 'object',
       properties: {

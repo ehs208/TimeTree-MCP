@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { READ_ONLY } from './shared-schemas.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 731;
@@ -46,8 +47,31 @@ export function createGetHolidaysTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'get_holidays',
     description:
-      'Get public holidays and memorial days for one or more countries in a date range (up to 2 years). ' +
-      'Useful for scheduling around days off. Read-only.',
+      'Look up public holidays and observances for up to 5 countries in a date range of up to 2 years, sorted by ' +
+      'date. day_off tells whether it is a day off. These are national holidays, not events in your calendars ' +
+      '(use get_events for those).',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        holidays: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              date: { type: 'string', description: 'YYYY-MM-DD' },
+              end_date: { type: 'string', description: 'YYYY-MM-DD' },
+              title: { type: 'string' },
+              country_iso: { type: 'string' },
+              day_off: { type: 'boolean' },
+            },
+            required: ['date', 'title', 'day_off'],
+          },
+        },
+        total: { type: 'number' },
+      },
+      required: ['holidays', 'total'],
+    },
     inputSchema: {
       type: 'object',
       properties: {

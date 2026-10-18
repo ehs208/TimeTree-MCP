@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `update_event_occurrence` and `delete_event_occurrence` change or delete one occurrence of a recurring event, or it and every later one, the way the TimeTree app does. Earlier occurrences are not touched, and a failed second step removes the event created in the first.
+- `copy_event` copies an event to a new time, optionally into another calendar.
+- `create_virtual_member`, `update_virtual_member`, and `delete_virtual_member` manage members without a TimeTree account. `get_calendar_virtual_members` now returns each member's `uuid`, type, short description, and birthday.
+- `get_current_user` returns your user ID and name.
+- Every tool declares MCP annotations (read-only, destructive, idempotent) and an output schema, and returns its JSON as `structuredContent`.
+- The server publishes instructions that explain the calendar ID, time, memo, and recurring-event conventions before the tool list.
+
+### Changed
+- Rewrote tool descriptions to say what each tool changes, what it needs, and which tool to use instead, and removed implementation details. The label color list moved from descriptions to the `label_id` parameters.
+
 ### Fixed
+- `get_events` dropped the last occurrence of a recurring event that ends on a date-only `UNTIL` (written by the app's "delete this and future events").
 - `get_events` and `list_memos` now read every event in large calendars. The events sync endpoint returns the newest chunk first with a decreasing cursor, and paging stopped after the first chunk. Paging now continues while the cursor is new, in either direction.
 - Event paging fails with an error instead of returning a partial list when the cursor repeats or no last chunk arrives within 200 pages, and keeps one entry per event when chunks overlap.
 

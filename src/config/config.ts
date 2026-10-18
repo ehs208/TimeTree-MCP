@@ -37,6 +37,9 @@ export const TIMETREE_CONFIG = {
     MEMORIAL_DAYS: '/memorialdays',
     LATEST_EVENT_ACTIVITIES: '/event_activities/latest',
     CALENDAR_VIRTUAL_USERS: (calendarId: string) => `/calendars/${pathSegment(calendarId)}/virtual_users`,
+    CALENDAR_VIRTUAL_USER: (calendarId: string, virtualUserUuid: string) =>
+      `/calendars/${pathSegment(calendarId)}/virtual_users/${pathSegment(virtualUserUuid)}`,
+    CURRENT_USER: '/user',
     EVENTS_SYNC: (calendarId: string) => `/calendar/${pathSegment(calendarId)}/events/sync`,
     EVENTS: (calendarId: string) => `/calendar/${pathSegment(calendarId)}/events`,
     CREATE_EVENT: (calendarId: string) => `/calendar/${pathSegment(calendarId)}/event`,

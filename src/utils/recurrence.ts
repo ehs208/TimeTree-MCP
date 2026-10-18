@@ -10,6 +10,9 @@
  * BYMONTHDAY, BYMONTH, WKST. Rules using other parts return null so callers can fall
  * back to the unexpanded event.
  *
+ * A date-only UNTIL (e.g. UNTIL=20261020, written by "delete this and future events")
+ * ends the series after that local day, so it compares dates rather than instants.
+ *
  * Local times that fall in a DST gap are shifted forward using the offset before the gap,
  * and ambiguous times use the first occurrence, as RFC 5545 section 3.3.5 specifies.
  */
@@ -30,6 +33,8 @@ interface Rule {
   interval: number;
   count?: number;
   until?: number;
+  /** Set when UNTIL is a date without a time: the last local day of the series. */
+  untilDate?: LocalDate;
   byDay: ByDay[];
   byMonthDay: number[];
   byMonth: number[];
@@ -92,8 +97,12 @@ function parseRule(value: string): Rule | null {
   if (freq === 'WEEKLY' && byMonthDay.length) return null;
   if (freq === 'YEARLY' && !byMonth.length && byDay.some((d) => d.ordinal !== undefined)) return null;
 
-  const until = parts.has('UNTIL') ? parseDateValue(parts.get('UNTIL')!) : undefined;
+  const untilValue = parts.get('UNTIL');
+  const until = untilValue === undefined ? undefined : parseDateValue(untilValue);
   if (until === null) return null;
+  const untilDate = untilValue && /^\d{8}$/.test(untilValue)
+    ? { year: Number(untilValue.slice(0, 4)), month: Number(untilValue.slice(4, 6)), day: Number(untilValue.slice(6, 8)) }
+    : undefined;
 
   const interval = parts.has('INTERVAL') ? Number(parts.get('INTERVAL')) : 1;
   const count = parts.has('COUNT') ? Number(parts.get('COUNT')) : undefined;
@@ -103,7 +112,7 @@ function parseRule(value: string): Rule | null {
   const weekStart = WEEKDAYS.indexOf((parts.get('WKST') ?? 'MO') as (typeof WEEKDAYS)[number]);
   if (weekStart < 0) return null;
 
-  return { freq, interval, count, until, byDay, byMonthDay, byMonth, weekStart };
+  return { freq, interval, count, until, untilDate, byDay, byMonthDay, byMonth, weekStart };
 }
 
 export interface ParsedRecurrence {
@@ -153,6 +162,15 @@ function timeZoneFormatter(timeZone: string): Intl.DateTimeFormat {
     minute: 'numeric',
     second: 'numeric',
   });
+}
+
+/** Fall back to UTC for a missing or unknown time zone name. */
+function formatterFor(timeZone: string | undefined): Intl.DateTimeFormat {
+  try {
+    return timeZoneFormatter(timeZone || 'UTC');
+  } catch {
+    return timeZoneFormatter('UTC');
+  }
 }
 
 function toLocal(instant: number, formatter: Intl.DateTimeFormat): LocalDate & LocalTime {
@@ -314,12 +332,7 @@ export interface ExpandResult {
 /** Expand a parsed recurrence into occurrence start times (epoch ms) within a window. */
 export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOptions): ExpandResult {
   const { rule, exdates } = recurrence;
-  let formatter: Intl.DateTimeFormat;
-  try {
-    formatter = timeZoneFormatter(options.timeZone || 'UTC');
-  } catch {
-    formatter = timeZoneFormatter('UTC');
-  }
+  const formatter = formatterFor(options.timeZone);
 
   const startLocal = toLocal(options.start, formatter);
   const startDate: LocalDate = { year: startLocal.year, month: startLocal.month, day: startLocal.day };
@@ -336,7 +349,8 @@ export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOp
       if (compareDates(date, startDate) < 0) continue;
       const instant = compareDates(date, startDate) === 0 ? options.start : fromLocal(date, startTime, formatter);
 
-      if (rule.until !== undefined && instant > rule.until) return { occurrences, truncated: false };
+      const pastUntil = rule.untilDate ? compareDates(date, rule.untilDate) > 0 : rule.until !== undefined && instant > rule.until;
+      if (pastUntil) return { occurrences, truncated: false };
       if (rule.count !== undefined && generated >= rule.count) return { occurrences, truncated: false };
       generated += 1;
 
@@ -355,4 +369,121 @@ export function expandRecurrence(recurrence: ParsedRecurrence, options: ExpandOp
 
   // The period safety limit ran out before the window ended.
   return { occurrences, truncated: true };
+}
+
+// ============================================================================
+// Editing a series: one occurrence, or this and following occurrences
+// ============================================================================
+
+/** Series start and the time zone its wall-clock times are in (UTC for all-day events). */
+export interface SeriesTiming {
+  start: number;
+  timeZone?: string;
+}
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/** RFC 5545 UTC date-time, the form TimeTree writes in EXDATE (e.g. 20261021T010000Z). */
+export function formatUtcDateTime(instant: number): string {
+  const d = new Date(instant);
+  return (
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
+    `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
+  );
+}
+
+function occurrencesBetween(recurrence: ParsedRecurrence, timing: SeriesTiming, from: number, to: number): number[] {
+  return expandRecurrence(recurrence, {
+    ...timing,
+    windowStart: from,
+    windowEnd: to,
+    maxOccurrences: Number.MAX_SAFE_INTEGER,
+  }).occurrences;
+}
+
+/** Whether `instant` is an occurrence of the series that has not been deleted or edited separately. */
+export function isOccurrence(recurrence: ParsedRecurrence, timing: SeriesTiming, instant: number): boolean {
+  return occurrencesBetween(recurrence, timing, instant, instant + 1).length === 1;
+}
+
+/** Add an occurrence to the series' EXDATE line; the web app keeps one comma-separated line. */
+export function addExdate(lines: string[], instant: number): string[] {
+  const value = formatUtcDateTime(instant);
+  const index = lines.findIndex((line) => line.toUpperCase().startsWith('EXDATE:'));
+  if (index < 0) return [...lines, `EXDATE:${value}`];
+
+  const values = lines[index].slice('EXDATE:'.length).split(',').filter(Boolean);
+  if (values.includes(value)) return lines;
+  return lines.map((line, i) => (i === index ? `EXDATE:${[...values, value].join(',')}` : line));
+}
+
+function rewriteRule(lines: string[], edit: (parts: Array<[string, string]>) => Array<[string, string]>): string[] {
+  return lines.map((line) => {
+    if (!line.toUpperCase().startsWith('RRULE:')) return line;
+    const parts = line
+      .slice('RRULE:'.length)
+      .split(';')
+      .filter(Boolean)
+      .map((pair): [string, string] => {
+        const separator = pair.indexOf('=');
+        return [pair.slice(0, separator).toUpperCase(), pair.slice(separator + 1)];
+      });
+    return `RRULE:${edit(parts).map(([key, value]) => `${key}=${value}`).join(';')}`;
+  });
+}
+
+export interface SeriesSplit {
+  /**
+   * Lines that end the original series on the local day of its last occurrence before the
+   * split, as the web app does (COUNT replaced by a date-only UNTIL). Null when the split is
+   * the first remaining occurrence, so the whole series is affected.
+   */
+  before: string[] | null;
+  /**
+   * Lines for a new series starting at the split: the RRULE with COUNT reduced to the
+   * occurrences that remain, and later EXDATEs moved by `shift` so they still match.
+   */
+  after: string[];
+}
+
+/** Split a series at occurrence `at` for "this and following" edits and deletions. */
+export function splitRecurrence(
+  lines: string[],
+  recurrence: ParsedRecurrence,
+  timing: SeriesTiming,
+  at: number,
+  shift = 0
+): SeriesSplit {
+  const earlier = occurrencesBetween(recurrence, timing, Number.NEGATIVE_INFINITY, at);
+  const last = earlier[earlier.length - 1];
+
+  let before: string[] | null = null;
+  if (last !== undefined) {
+    const day = toLocal(last, formatterFor(timing.timeZone));
+    const until = `${day.year}${pad(day.month)}${pad(day.day)}`;
+    before = rewriteRule(lines, (parts) => [
+      ...parts.filter(([key]) => key !== 'COUNT' && key !== 'UNTIL'),
+      ['UNTIL', until],
+    ]);
+  }
+
+  // COUNT includes deleted occurrences, so count them too.
+  const generatedBefore = occurrencesBetween(
+    { rule: recurrence.rule, exdates: new Set() },
+    timing,
+    Number.NEGATIVE_INFINITY,
+    at
+  ).length;
+  const rule = rewriteRule(
+    lines.filter((line) => line.toUpperCase().startsWith('RRULE:')),
+    (parts) => parts.map(([key, value]): [string, string] =>
+      key === 'COUNT' ? [key, String(Math.max(1, Number(value) - generatedBefore))] : [key, value]
+    )
+  );
+  const laterExdates = [...recurrence.exdates].filter((instant) => instant > at).map((instant) => instant + shift);
+  const after = laterExdates.length
+    ? [...rule, `EXDATE:${laterExdates.map(formatUtcDateTime).join(',')}`]
+    : rule;
+
+  return { before, after };
 }

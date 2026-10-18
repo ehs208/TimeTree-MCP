@@ -35,20 +35,25 @@ function parseToolText(result) {
   return JSON.parse(result.content[0].text);
 }
 
-test('registerTools exposes baseline plus Wave 1 tools', () => {
+test('registerTools exposes every tool', () => {
   const names = registerTools({}).map((tool) => tool.name).sort();
 
   assert.deepEqual(names, [
     'add_event_comment',
+    'copy_event',
     'create_calendar',
     'create_event',
     'create_memo',
+    'create_virtual_member',
     'delete_event',
     'delete_event_comment',
+    'delete_event_occurrence',
     'delete_memo',
+    'delete_virtual_member',
     'get_calendar_labels',
     'get_calendar_members',
     'get_calendar_virtual_members',
+    'get_current_user',
     'get_events',
     'get_holidays',
     'get_recent_activity',
@@ -59,7 +64,9 @@ test('registerTools exposes baseline plus Wave 1 tools', () => {
     'update_calendar_labels',
     'update_event',
     'update_event_comment',
+    'update_event_occurrence',
     'update_memo',
+    'update_virtual_member',
   ].sort());
 });
 

@@ -7,7 +7,15 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError, TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
-import { CALENDAR_ID_JSON_SCHEMA, CalendarIdSchema } from './shared-schemas.js';
+import {
+  ADDITIVE,
+  CALENDAR_ID_JSON_SCHEMA,
+  CalendarIdSchema,
+  deletionOutputSchema,
+  DESTRUCTIVE_IDEMPOTENT,
+  LABEL_ID_DESCRIPTION,
+  READ_ONLY,
+} from './shared-schemas.js';
 import { getLabelColorName } from '../types/label-colors.js';
 import type { Event } from '../types/timetree.js';
 
@@ -52,6 +60,34 @@ export const DeleteMemoInputSchema = z.object({
   calendar_id: CalendarIdSchema.describe('The calendar ID'),
   memo_uuid: z.string().describe('The memo UUID (same as event UUID)'),
 });
+
+const nullable = (type: string) => ({ type: [type, 'null'] });
+
+const MEMO_OUTPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    uuid: { type: 'string' },
+    calendar_id: { type: 'number' },
+    title: { type: 'string' },
+    memo_date: { type: 'string', description: 'YYYY-MM-DD' },
+    label_id: nullable('number'),
+    label_color: nullable('string'),
+    note: nullable('string'),
+    location: nullable('string'),
+    url: nullable('string'),
+    checklist: { type: 'array' },
+    virtual_user_attendees: { type: 'array' },
+    created_at: nullable('string'),
+    updated_at: nullable('string'),
+  },
+  required: ['uuid', 'title', 'memo_date'],
+} as const;
+
+const MEMO_RESULT_OUTPUT_SCHEMA = {
+  type: 'object',
+  properties: { success: { type: 'boolean' }, message: { type: 'string' }, memo: MEMO_OUTPUT_SCHEMA },
+  required: ['success', 'memo'],
+} as const;
 
 function dateToUtcMidnight(date?: string): number | undefined {
   if (!date) return undefined;
@@ -120,7 +156,20 @@ function memoError(error: unknown, action: string) {
 export function createListMemosTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'list_memos',
-    description: 'List TimeTree memos in a calendar. Memos are category=2 all-day events.',
+    description:
+      'List the memos in a calendar: notes, lists, and checklists that are not scheduled events. ' +
+      'Use get_events for events (it also includes memos unless include_memos is false). ' +
+      'Optionally only memos updated after a time.',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: { type: 'number' },
+        memos: { type: 'array', items: MEMO_OUTPUT_SCHEMA },
+        total: { type: 'number' },
+      },
+      required: ['calendar_id', 'memos', 'total'],
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -170,14 +219,19 @@ export function createListMemosTool(apiClient: TimeTreeAPIClient) {
 export function createCreateMemoTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'create_memo',
-    description: 'Create a TimeTree memo in a calendar using the verified category=2 event payload.',
+    description:
+      'Create a memo in a calendar and return it with its uuid: a note, list, or checklist that is not a scheduled ' +
+      'event, such as a shopping list. Other calendar members can see it. Use create_event for something that happens ' +
+      'at a time. Change it later with update_memo.',
+    annotations: ADDITIVE,
+    outputSchema: MEMO_RESULT_OUTPUT_SCHEMA,
     inputSchema: {
       type: 'object',
       properties: {
         calendar_id: CALENDAR_ID_JSON_SCHEMA,
         title: { type: 'string', description: 'Memo title' },
         note: { type: 'string', description: 'Memo body text' },
-        label_id: { type: 'number', description: 'Color label ID (1-10)' },
+        label_id: { type: 'number', description: LABEL_ID_DESCRIPTION },
         location: { type: 'string', description: 'Optional memo location' },
         url: { type: 'string', description: 'Optional related URL' },
         date: { type: 'string', description: 'Optional memo date in YYYY-MM-DD; defaults to today UTC' },
@@ -244,7 +298,11 @@ export function createCreateMemoTool(apiClient: TimeTreeAPIClient) {
 export function createUpdateMemoTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'update_memo',
-    description: 'Update a TimeTree memo. Only provide the fields you want to change.',
+    description:
+      'Change a memo and return it. Only provide the fields to change; checklist and virtual attendees replace the ' +
+      'current lists. Get memo_uuid from list_memos. Fails for regular events (use update_event).',
+    annotations: DESTRUCTIVE_IDEMPOTENT,
+    outputSchema: MEMO_RESULT_OUTPUT_SCHEMA,
     inputSchema: {
       type: 'object',
       properties: {
@@ -252,7 +310,7 @@ export function createUpdateMemoTool(apiClient: TimeTreeAPIClient) {
         memo_uuid: { type: 'string', description: 'The memo UUID (same as event UUID)' },
         title: { type: 'string', description: 'New memo title' },
         note: { type: 'string', description: 'New memo body text' },
-        label_id: { type: 'number', description: 'New color label ID (1-10)' },
+        label_id: { type: 'number', description: LABEL_ID_DESCRIPTION },
         location: { type: 'string', description: 'New memo location' },
         url: { type: 'string', description: 'New related URL; use an empty string to remove it' },
         checklist: {
@@ -317,7 +375,10 @@ export function createUpdateMemoTool(apiClient: TimeTreeAPIClient) {
 export function createDeleteMemoTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'delete_memo',
-    description: 'Delete a TimeTree memo. This action cannot be undone.',
+    description:
+      'Delete a memo. Cannot be undone. Get memo_uuid from list_memos. Fails for regular events (use delete_event).',
+    annotations: DESTRUCTIVE_IDEMPOTENT,
+    outputSchema: deletionOutputSchema('deleted_memo_uuid'),
     inputSchema: {
       type: 'object',
       properties: {
