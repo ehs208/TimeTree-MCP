@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { TimeTreeAPIClient } from '../client/api.js';
 import { InvalidCalendarError, TimeTreeAPIError } from '../client/api.js';
 import { logger } from '../utils/logger.js';
+import { stringRecurrences } from '../utils/recurrence.js';
 import {
   ADDITIVE,
   CALENDAR_ID_JSON_SCHEMA,
@@ -58,7 +59,7 @@ export function formatEvent(event: Event) {
     category: event.category || null,
     attendees: event.attendees || [],
     alerts: event.alerts || [],
-    recurrences: event.recurrences || [],
+    recurrences: stringRecurrences(event.recurrences),
     checklist: event.attachment?.checklist || null,
     virtual_user_attendees: event.attachment?.virtual_user_attendees || [],
     parent_id: event.parent_id || null,
@@ -552,6 +553,8 @@ export function createCopyEventTool(apiClient: TimeTreeAPIClient) {
           category: source.category ?? 1,
           note: source.note ?? undefined,
           location: source.location ?? undefined,
+          location_lat: source.location_lat ?? undefined,
+          location_lon: source.location_lon ?? undefined,
           url: source.attachment?.url ?? source.url ?? undefined,
           attendees: sameCalendar ? source.attendees ?? [] : [],
           recurrences: [],

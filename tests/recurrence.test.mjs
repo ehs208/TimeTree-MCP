@@ -6,6 +6,7 @@ import {
   isOccurrence,
   parseRecurrence,
   splitRecurrence,
+  withSplitBounds,
 } from '../.test-dist/utils/recurrence.js';
 
 const iso = (ms) => new Date(ms).toISOString();
@@ -253,4 +254,31 @@ test('splitRecurrence moves UNTIL with a new start time so the last occurrence i
   );
 
   assert.deepEqual(splitRecurrence(dateOnly, parseRecurrence(dateOnly), seoul, Date.parse('2026-10-22T14:00:00Z')).after, dateOnly);
+});
+
+test('splitRecurrence moves exclusions by wall-clock time across a DST change', () => {
+  // New York: daily 09:00 from Mar 1, 2026; clocks move forward on Mar 8.
+  const lines = ['RRULE:FREQ=DAILY', 'EXDATE:20260310T130000Z'];
+  const timing = { start: Date.parse('2026-03-01T14:00:00Z'), timeZone: 'America/New_York' };
+  const at = Date.parse('2026-03-07T14:00:00Z');
+  const shift = Date.parse('2026-03-08T13:00:00Z') - at; // 09:00 to 09:00 the next day: 23 hours
+
+  const split = splitRecurrence(lines, parseRecurrence(lines), timing, at, shift);
+  assert.deepEqual(split.after, ['RRULE:FREQ=DAILY', 'EXDATE:20260311T130000Z']);
+});
+
+test('withSplitBounds keeps the split COUNT, UNTIL, and exclusions unless the new rule sets them', () => {
+  const after = ['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=3', 'EXDATE:20261103T010000Z'];
+  assert.deepEqual(withSplitBounds(['RRULE:FREQ=WEEKLY;BYDAY=TU'], after), [
+    'RRULE:FREQ=WEEKLY;BYDAY=TU;COUNT=3',
+    'EXDATE:20261103T010000Z',
+  ]);
+  assert.deepEqual(withSplitBounds(['RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231'], after), [
+    'RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231',
+    'EXDATE:20261103T010000Z',
+  ]);
+  assert.deepEqual(withSplitBounds(['RRULE:FREQ=DAILY', 'EXDATE:20261104T010000Z'], ['RRULE:FREQ=DAILY']), [
+    'RRULE:FREQ=DAILY',
+    'EXDATE:20261104T010000Z',
+  ]);
 });

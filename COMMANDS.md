@@ -196,7 +196,7 @@ What happens in TimeTree:
 | delete, `this` | The occurrence is excluded from the series (EXDATE). |
 | delete, `this_and_following` | The series ends on the day of the previous occurrence. From the first occurrence, the whole series is deleted. |
 | update, `this` | A separate event linked to the series (`parent_id`) replaces the occurrence. |
-| update, `this_and_following` | The series ends before the occurrence and a new series (new `uuid`) starts there with the changes. From the first occurrence, the whole series is changed. Moving to another day when the rule repeats on set days (`BYDAY`, `BYMONTHDAY`, `BYMONTH`) needs a new `recurrences`. |
+| update, `this_and_following` | The series ends before the occurrence and a new series (new `uuid`) starts there with the changes. From the first occurrence, the whole series is changed. Moving to another day (by `start_at` or `start_timezone`) when the rule repeats on set days (`BYDAY`, `BYMONTHDAY`, `BYMONTH`) needs a new `recurrences`; its remaining `COUNT` or `UNTIL` and deleted later occurrences carry over unless the new rule sets them. |
 
 Moving an occurrence with `start_at` keeps its length unless `end_at` is given. If the second step of an update fails, the event created in the first step is removed, unless TimeTree applied the step anyway. When the outcome cannot be confirmed, or removing the event also fails, the error says so and names the event, so it can be checked with `get_events`. Rules this server cannot expand (for example `BYSETPOS`) are rejected; change those in the TimeTree app.
 

@@ -26,6 +26,7 @@ import {
   parseRecurrence,
   shiftNeedsNewRule,
   splitRecurrence,
+  withSplitBounds,
   type ParsedRecurrence,
   type SeriesTiming,
 } from '../utils/recurrence.js';
@@ -316,6 +317,11 @@ function occurrenceEvent(series: Event, at: number, input: UpdateOccurrenceInput
     category: series.category ?? 1,
     note: input.note ?? series.note ?? undefined,
     location: input.location ?? series.location ?? undefined,
+    // Map coordinates belong to the old location, so they stay only when it does.
+    ...(input.location === undefined && {
+      location_lat: series.location_lat ?? undefined,
+      location_lon: series.location_lon ?? undefined,
+    }),
     url: input.url ?? series.attachment?.url ?? series.url ?? undefined,
     attendees: input.attendees ?? series.attendees ?? [],
     alerts: input.alerts ?? series.alerts ?? [],
@@ -375,7 +381,9 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
           items: { type: 'string' },
           description:
             'Only with scope "this_and_following": a new RRULE for the new series, e.g. ["RRULE:FREQ=WEEKLY;INTERVAL=2"]. ' +
-            'Required when start_at moves the occurrences to another day and the rule uses BYDAY, BYMONTHDAY, or BYMONTH.',
+            'Required when start_at or start_timezone moves the occurrences to another day and the rule uses BYDAY, ' +
+            'BYMONTHDAY, or BYMONTH. Without COUNT or UNTIL, the remaining count or end carries over, and so do ' +
+            'deleted later occurrences unless an EXDATE is given.',
         },
       },
       required: ['calendar_id', 'event_uuid', 'occurrence_start_at'],
@@ -420,9 +428,13 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
           result = 'occurrence_event_created';
         } else {
           const shift = changed.start_at - at;
-          if (input.recurrences === undefined && shiftNeedsNewRule(series.recurrence, series.timing, at, shift)) {
+          const newTimeZone = series.event.all_day ? series.timing.timeZone : changed.start_timezone;
+          if (
+            input.recurrences === undefined &&
+            shiftNeedsNewRule(series.recurrence, series.timing, at, shift, newTimeZone)
+          ) {
             throw new OccurrenceError(
-              'This moves the occurrences to another day, but the series repeats on set days ' +
+              'This moves the occurrences to another day (or time zone), but the series repeats on set days ' +
                 `(${series.lines.find((line) => line.toUpperCase().startsWith('RRULE:'))}). ` +
                 'Pass recurrences with the new rule, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=TU"].'
             );
@@ -430,7 +442,10 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
           const split = splitRecurrence(series.lines, series.recurrence, series.timing, at, shift);
           if (!split.before) {
             // Earlier occurrences may all be deleted; a moved start then needs the reduced COUNT.
-            const recurrences = input.recurrences ?? (input.start_at === undefined ? undefined : split.after);
+            const lines = input.start_at === undefined ? series.lines : split.after;
+            const recurrences = input.recurrences
+              ? withSplitBounds(input.recurrences, lines)
+              : input.start_at === undefined ? undefined : split.after;
             const { title, start_at, end_at, start_timezone, end_timezone, label_id, note, location, url, attendees,
               alerts } = input;
             event = await apiClient.updateEvent(calendarId, input.event_uuid, {
@@ -440,7 +455,10 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
             });
             result = 'whole_series_updated';
           } else {
-            event = await createStep(apiClient, calendarId, { ...changed, recurrences: input.recurrences ?? split.after });
+            event = await createStep(apiClient, calendarId, {
+              ...changed,
+              recurrences: input.recurrences ? withSplitBounds(input.recurrences, split.after) : split.after,
+            });
             await finishSeriesUpdate(apiClient, calendarId, input.event_uuid, split.before, event);
             result = 'new_series_created';
           }

@@ -15,7 +15,7 @@ import {
   LABEL_ID_DESCRIPTION,
   READ_ONLY,
 } from './shared-schemas.js';
-import { expandRecurrence, parseRecurrence } from '../utils/recurrence.js';
+import { expandRecurrence, parseRecurrence, stringRecurrences } from '../utils/recurrence.js';
 import type { Event } from '../types/timetree.js';
 
 const MAX_OCCURRENCES_PER_EVENT = 500;
@@ -244,7 +244,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
           updated_at: event.updated_at ? new Date(event.updated_at).toISOString() : null,
           attendees: event.attendees || [],
           alerts: event.alerts || [],
-          recurrences: event.recurrences || [],
+          recurrences: stringRecurrences(event.recurrences),
           has_alerts: event.alerts && event.alerts.length > 0,
           has_recurrence: event.recurrences && event.recurrences.length > 0,
           checklist: event.attachment?.checklist || null,
@@ -425,7 +425,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
           updated_at: event.updated_at ? new Date(event.updated_at).toISOString() : null,
           attendees: event.attendees || [],
           alerts: event.alerts || [],
-          recurrences: event.recurrences || [],
+          recurrences: stringRecurrences(event.recurrences),
           has_alerts: event.alerts && event.alerts.length > 0,
           has_recurrence: event.recurrences && event.recurrences.length > 0,
           checklist: event.attachment?.checklist || null,

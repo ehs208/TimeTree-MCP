@@ -252,6 +252,56 @@ test('update_event_occurrence asks for a new rule when moving a BYDAY series to 
   assert.equal(sameDay.isError, undefined);
 });
 
+test('update_event_occurrence carries the remaining COUNT into a supplied rule and checks the new time zone', async () => {
+  const monday = Date.parse('2026-10-19T01:00:00Z');
+  const weekly = () => series({
+    start_at: monday, end_at: monday + HOUR, recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=4'],
+  });
+  const at = monday + 7 * 24 * HOUR;
+
+  const client = fakeClient({ getEvent: async () => weekly() });
+  await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: at, scope: 'this_and_following',
+    start_at: at + 24 * HOUR, recurrences: ['RRULE:FREQ=WEEKLY;BYDAY=TU'],
+  });
+  assert.deepEqual(
+    client.calls.find(([method]) => method === 'createEvent')[2].recurrences,
+    ['RRULE:FREQ=WEEKLY;BYDAY=TU;COUNT=3']
+  );
+
+  // 10:00 Monday in Seoul is still Sunday in Los Angeles.
+  const moved = await createUpdateEventOccurrenceTool(fakeClient({ getEvent: async () => weekly() })).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: at, scope: 'this_and_following',
+    start_timezone: 'America/Los_Angeles',
+  });
+  assert.equal(moved.isError, true);
+  assert.match(parse(moved).message, /Pass recurrences/);
+});
+
+test('occurrence and copy events keep map coordinates unless the location changes', async () => {
+  const placed = () => series({ location: 'Office', location_lat: 37.5, location_lon: 127 });
+
+  const client = fakeClient({ getEvent: async () => placed() });
+  await createUpdateEventOccurrenceTool(client).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-21T01:00:00Z', title: 'Moved',
+  });
+  const kept = client.calls.find(([method]) => method === 'createEvent')[2];
+  assert.equal(kept.location_lat, 37.5);
+  assert.equal(kept.location_lon, 127);
+
+  const relocated = fakeClient({ getEvent: async () => placed() });
+  await createUpdateEventOccurrenceTool(relocated).handler({
+    calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-21T01:00:00Z', location: 'Cafe',
+  });
+  const replaced = relocated.calls.find(([method]) => method === 'createEvent')[2];
+  assert.equal(replaced.location, 'Cafe');
+  assert.equal(replaced.location_lat, undefined);
+
+  const copier = fakeClient({ getEvent: async () => placed() });
+  await createCopyEventTool(copier).handler({ calendar_id: 123, event_uuid: 'series', start_at: OCT20 });
+  assert.equal(copier.calls.find(([method]) => method === 'createEvent')[2].location_lat, 37.5);
+});
+
 test('update_event_occurrence keeps the reduced COUNT when every earlier occurrence was deleted', async () => {
   const client = fakeClient({
     getEvent: async () => series({ recurrences: ['RRULE:FREQ=DAILY;COUNT=4', 'EXDATE:20261020T010000Z'] }),

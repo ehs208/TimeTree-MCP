@@ -297,6 +297,8 @@ export const CreateEventInputSchema = z.object({
   category: z.number().default(1),
   note: z.string().optional(),
   location: z.string().optional(),
+  location_lat: z.union([z.number(), z.string()]).optional(),
+  location_lon: z.union([z.number(), z.string()]).optional(),
   url: z.string().optional(),
   attendees: z.array(z.number()).default([]),
   recurrences: z.array(z.any()).default([]),

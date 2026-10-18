@@ -115,6 +115,11 @@ function parseRule(value: string): Rule | null {
   return { freq, interval, count, until, untilDate, byDay, byMonthDay, byMonth, weekStart };
 }
 
+/** The RRULE/EXDATE lines of an event; TimeTree's field may hold other values, which are dropped. */
+export function stringRecurrences(lines: unknown[] | null | undefined): string[] {
+  return (lines ?? []).filter((line): line is string => typeof line === 'string');
+}
+
 export interface ParsedRecurrence {
   rule: Rule;
   exdates: Set<number>;
@@ -442,7 +447,8 @@ export interface SeriesSplit {
   before: string[] | null;
   /**
    * Lines for a new series starting at the split: the RRULE with COUNT reduced to the
-   * occurrences that remain, and UNTIL and later EXDATEs moved by `shift` so they still match.
+   * occurrences that remain, and UNTIL and later EXDATEs moved with the start (by the same
+   * wall-clock change, so DST does not put them off the rule).
    */
   after: string[];
 }
@@ -452,25 +458,78 @@ export interface SeriesSplit {
  * days with BYDAY, BYMONTHDAY, or BYMONTH. The moved series would keep repeating on the old
  * days, so the caller needs a new rule.
  */
-export function shiftNeedsNewRule(recurrence: ParsedRecurrence, timing: SeriesTiming, at: number, shift: number): boolean {
+export function shiftNeedsNewRule(
+  recurrence: ParsedRecurrence,
+  timing: SeriesTiming,
+  at: number,
+  shift: number,
+  newTimeZone = timing.timeZone
+): boolean {
   const { rule } = recurrence;
   if (!rule.byDay.length && !rule.byMonthDay.length && !rule.byMonth.length) return false;
+  return compareDates(toLocal(at, formatterFor(timing.timeZone)), toLocal(at + shift, formatterFor(newTimeZone))) !== 0;
+}
+
+/**
+ * Move instants the way moving occurrence `at` to `at + shift` moves the series: by the same
+ * wall-clock change, so later times stay on the rule across a DST transition.
+ */
+function wallClockMover(timing: SeriesTiming, at: number, shift: number): (instant: number) => number {
   const formatter = formatterFor(timing.timeZone);
-  return compareDates(toLocal(at, formatter), toLocal(at + shift, formatter)) !== 0;
+  const wall = (instant: number) => {
+    const local = toLocal(instant, formatter);
+    return Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second);
+  };
+  const delta = wall(at + shift) - wall(at);
+  return (instant) => {
+    const moved = new Date(wall(instant) + delta);
+    return fromLocal(
+      { year: moved.getUTCFullYear(), month: moved.getUTCMonth() + 1, day: moved.getUTCDate() },
+      { hour: moved.getUTCHours(), minute: moved.getUTCMinutes(), second: moved.getUTCSeconds() },
+      formatter
+    );
+  };
+}
+
+/**
+ * A replacement rule for the new series, keeping what the split worked out: when `supplied`
+ * has no COUNT or UNTIL, the remaining COUNT or the moved UNTIL; when it has no EXDATE, the
+ * moved later exclusions.
+ */
+export function withSplitBounds(supplied: string[], after: string[]): string[] {
+  const isRule = (line: string) => line.toUpperCase().startsWith('RRULE:');
+  const isExdate = (line: string) => line.toUpperCase().startsWith('EXDATE:');
+  const splitRule = after.find(isRule) ?? '';
+  const bound = splitRule.slice('RRULE:'.length).split(';').find((part) => /^(COUNT|UNTIL)=/i.test(part));
+
+  let lines = supplied;
+  if (bound && !supplied.some((line) => isRule(line) && /(^|[:;])(COUNT|UNTIL)=/i.test(line))) {
+    lines = rewriteRule(lines, (parts) => {
+      const separator = bound.indexOf('=');
+      return [...parts, [bound.slice(0, separator).toUpperCase(), bound.slice(separator + 1)]];
+    });
+  }
+  if (!supplied.some(isExdate)) lines = [...lines, ...after.filter(isExdate)];
+  return lines;
 }
 
 /**
  * UNTIL for a series whose occurrences all move by `shift`, so a moved last occurrence is
  * not cut off. A date-only UNTIL becomes the local day of the moved last occurrence.
  */
-function shiftedUntil(recurrence: ParsedRecurrence, timing: SeriesTiming, at: number, shift: number): string | null {
+function shiftedUntil(
+  recurrence: ParsedRecurrence,
+  timing: SeriesTiming,
+  at: number,
+  move: (instant: number) => number
+): string | null {
   const { rule } = recurrence;
-  if (!rule.untilDate) return rule.until === undefined ? null : formatUtcDateTime(rule.until + shift);
+  if (!rule.untilDate) return rule.until === undefined ? null : formatUtcDateTime(move(rule.until));
 
   const remaining = occurrencesBetween({ rule, exdates: new Set() }, timing, at, Number.POSITIVE_INFINITY);
   const last = remaining[remaining.length - 1];
   if (last === undefined) return null;
-  const day = toLocal(last + shift, formatterFor(timing.timeZone));
+  const day = toLocal(move(last), formatterFor(timing.timeZone));
   return `${day.year}${pad(day.month)}${pad(day.day)}`;
 }
 
@@ -502,15 +561,16 @@ export function splitRecurrence(
     Number.NEGATIVE_INFINITY,
     at
   ).length;
+  const move = wallClockMover(timing, at, shift);
   const rule = rewriteRule(
     lines.filter((line) => line.toUpperCase().startsWith('RRULE:')),
     (parts) => parts.map(([key, value]): [string, string] => {
       if (key === 'COUNT') return [key, String(Math.max(1, Number(value) - generatedBefore))];
-      if (key === 'UNTIL' && shift !== 0) return [key, shiftedUntil(recurrence, timing, at, shift) ?? value];
+      if (key === 'UNTIL' && shift !== 0) return [key, shiftedUntil(recurrence, timing, at, move) ?? value];
       return [key, value];
     })
   );
-  const laterExdates = [...recurrence.exdates].filter((instant) => instant > at).map((instant) => instant + shift);
+  const laterExdates = [...recurrence.exdates].filter((instant) => instant > at).map(move);
   const after = laterExdates.length
     ? [...rule, `EXDATE:${laterExdates.map(formatUtcDateTime).join(',')}`]
     : rule;
