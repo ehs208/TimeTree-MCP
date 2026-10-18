@@ -413,6 +413,13 @@ export function createUpdateEventOccurrenceTool(apiClient: TimeTreeAPIClient) {
         if (input.recurrences !== undefined && input.scope !== 'this_and_following') {
           throw new OccurrenceError('recurrences can only change with scope "this_and_following".');
         }
+        // Without a rule the new series would be a single event and the later occurrences would be lost.
+        if (input.recurrences !== undefined && !parseRecurrence(input.recurrences)) {
+          throw new OccurrenceError(
+            'recurrences must include an RRULE this server can expand, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=TU"]. ' +
+              'To remove this and later occurrences, use delete_event_occurrence.'
+          );
+        }
         const calendarId = input.calendar_id.toString();
         const at = input.occurrence_start_at;
         logger.info('Tool: update_event_occurrence called', { calendar_id: calendarId, event_uuid: input.event_uuid, scope: input.scope });

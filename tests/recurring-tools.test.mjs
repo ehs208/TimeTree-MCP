@@ -298,6 +298,19 @@ test('update_event_occurrence restarts an all-excluded series at the occurrence 
   assert.deepEqual(update.recurrences, ['RRULE:FREQ=WEEKLY;BYDAY=MO,WE']);
 });
 
+test('update_event_occurrence refuses recurrences without an RRULE before writing anything', async () => {
+  for (const recurrences of [[], ['EXDATE:20261023T010000Z']]) {
+    const client = fakeClient();
+    const result = await createUpdateEventOccurrenceTool(client).handler({
+      calendar_id: 123, event_uuid: 'series', occurrence_start_at: '2026-10-22T01:00:00Z',
+      scope: 'this_and_following', recurrences,
+    });
+    assert.equal(result.isError, true);
+    assert.match(parse(result).message, /must include an RRULE/);
+    assert.equal(client.calls.length, 0);
+  }
+});
+
 test('occurrence and copy events keep map coordinates unless the location changes', async () => {
   const placed = () => series({ location: 'Office', location_lat: 37.5, location_lon: 127 });
 
