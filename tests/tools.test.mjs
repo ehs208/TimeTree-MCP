@@ -54,6 +54,7 @@ test('registerTools exposes every tool', () => {
     'get_calendar_members',
     'get_calendar_virtual_members',
     'get_current_user',
+    'get_event_comment_image',
     'get_events',
     'get_holidays',
     'get_recent_activity',

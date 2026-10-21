@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `get_event_comment_image` retrieves one image from an event comment, including images posted by free accounts, and returns standard MCP image content over stdio without saving files. Supports JPEG, PNG, GIF, and WebP up to 5 MiB, with a 30-second download timeout, no redirects, and no authentication material sent to the image host.
+- `list_event_comments` and comment write results now include an `images` array with image indices, filenames, and dimensions, including comments containing only an image. Image download locations are not exposed.
+
 ## [0.6.0] - 2026-10-18
 
 ### Added

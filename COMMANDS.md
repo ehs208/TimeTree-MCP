@@ -23,6 +23,7 @@ Quick reference for using TimeTree MCP Server with AI assistants.
 | **delete_memo** | Delete a memo |
 | **add_event_comment** | Add an event comment |
 | **list_event_comments** | List event comments |
+| **get_event_comment_image** | View one image attached to an event comment |
 | **update_event_comment** | Update an event comment |
 | **delete_event_comment** | Delete an event comment |
 | **get_calendar_labels** | Get calendar labels |
@@ -254,8 +255,28 @@ Comments are visible to everyone in the calendar. TimeTree lets only a comment's
 |------|----------------|
 | `add_event_comment` | `calendar_id`, `event_uuid`, `content`, optional `silent` |
 | `list_event_comments` | `calendar_id`, `event_uuid` |
+| `get_event_comment_image` | `calendar_id`, `event_uuid`, `comment_id`, optional `image_index` (default `0`) |
 | `update_event_comment` | `calendar_id`, `event_uuid`, `comment_id`, `content` |
 | `delete_event_comment` | `calendar_id`, `event_uuid`, `comment_id` |
+
+`list_event_comments` includes image-only comments. Each comment has an `images` array (empty for text-only comments), with `image_index` (starting at `0`), `filename`, `width`, and `height`. Missing metadata is `null`; dimensions may be numbers or strings. Image locations are not returned.
+
+To view an image, pass its `comment_id` and `image_index` to `get_event_comment_image`:
+
+```json
+{
+  "calendar_id": "123",
+  "event_uuid": "example-event",
+  "comment_id": "example-comment",
+  "image_index": 0
+}
+```
+
+The result contains JSON metadata (`calendar_id`, `event_uuid`, `comment_id`, `image_index`, `filename`, `width`, `height`, `mime_type`, `byte_size`) as text and `structuredContent`, followed by an MCP `image` content block with base64 data. This works over stdio; the client must support image tool results and image understanding. The server holds the image in memory and does not save a local file or return a download URL.
+
+Images are fetched one at a time after checking the event's current comments, without sending session cookies or CSRF tokens to the image host. Downloads time out after 30 seconds, reject redirects, and accept JPEG, PNG, GIF, and WebP up to 5 MiB (before base64 encoding). Other formats and larger images return a tool error; images are not resized or converted. Comment images posted by free accounts are supported. Premium files attached directly to an event and image uploads are not supported.
+
+Example prompt: "Read the image in the comments on my appointment and summarize it."
 
 ---
 

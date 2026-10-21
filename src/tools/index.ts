@@ -17,6 +17,7 @@ import {
 import {
   createAddEventCommentTool,
   createDeleteEventCommentTool,
+  createGetEventCommentImageTool,
   createListEventCommentsTool,
   createUpdateEventCommentTool,
 } from './comment-tools.js';
@@ -56,6 +57,7 @@ export function registerTools(apiClient: TimeTreeAPIClient) {
     createDeleteMemoTool(apiClient),
     createAddEventCommentTool(apiClient),
     createListEventCommentsTool(apiClient),
+    createGetEventCommentImageTool(apiClient),
     createUpdateEventCommentTool(apiClient),
     createDeleteEventCommentTool(apiClient),
     createGetCalendarLabelsTool(apiClient),
@@ -74,11 +76,11 @@ export function registerTools(apiClient: TimeTreeAPIClient) {
  * Tools that declare an outputSchema also return their JSON as structuredContent, which
  * MCP requires to match that schema. Error results carry no structured content.
  */
-export function toolResult<T extends { content: Array<{ type: string; text: string }>; isError?: boolean }>(
+export function toolResult<T extends { content: Array<{ type: string; text?: string }>; isError?: boolean }>(
   tool: { outputSchema?: unknown },
   result: T
 ): T & { structuredContent?: Record<string, unknown> } {
-  if (!tool.outputSchema || result.isError || result.content[0]?.type !== 'text') {
+  if (!tool.outputSchema || result.isError || result.content[0]?.type !== 'text' || typeof result.content[0].text !== 'string') {
     return result;
   }
   return { ...result, structuredContent: JSON.parse(result.content[0].text) };

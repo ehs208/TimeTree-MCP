@@ -36,6 +36,7 @@ Ask your AI assistant things like:
 ## What it does
 
 - **Reads your calendars.** Events with date, keyword, and label filters. Recurring events are expanded into their actual dates.
+- **Reads comment images.** Pass images attached to event comments to your AI client, including images posted by free accounts.
 - **Changes them when you ask.** Create, update, copy, and delete events, memos, and comments, and rename or recolor labels. Change or delete a single occurrence of a recurring event, or it and the ones after it.
 - **Manages virtual members.** Add, rename, or remove members without a TimeTree account, such as children or pets.
 - **Keeps you up to date.** See what changed since a given time, and who made recent changes.
@@ -118,7 +119,7 @@ Details: [docs/UPDATING.md](docs/UPDATING.md). Changes: [CHANGELOG.md](CHANGELOG
 | Events | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event`, `copy_event` |
 | Recurring events | `update_event_occurrence`, `delete_event_occurrence` |
 | Memos | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
-| Comments | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
+| Comments | `list_event_comments`, `get_event_comment_image`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
 | Labels and members | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members`, `create_virtual_member`, `update_virtual_member`, `delete_virtual_member` |
 | Other | `get_holidays`, `get_recent_activity` |
 
@@ -126,6 +127,8 @@ Parameters and examples: [COMMANDS.md](COMMANDS.md)
 
 `create_calendar` requires a name (1–20 characters) and an explicit purpose. It does not invite members. Timeouts and server errors are not retried.
 If the creation response cannot be validated, check existing calendars before trying again.
+
+`list_event_comments` includes image metadata. Use `get_event_comment_image` to retrieve one image as standard MCP image content over stdio; the client must support image tool results. JPEG, PNG, GIF, and WebP up to 5 MiB are supported. Images stay in memory and are not saved to disk. Premium files attached directly to an event and image uploads are not supported.
 
 ## Privacy and security
 

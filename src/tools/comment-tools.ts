@@ -15,7 +15,7 @@ import {
   DESTRUCTIVE_IDEMPOTENT,
   READ_ONLY,
 } from './shared-schemas.js';
-import type { EventActivity } from '../types/timetree.js';
+import type { CommentImage, EventActivity } from '../types/timetree.js';
 
 export const AddEventCommentInputSchema = z.object({
   calendar_id: CalendarIdSchema.describe('The calendar ID'),
@@ -27,6 +27,11 @@ export const AddEventCommentInputSchema = z.object({
 export const ListEventCommentsInputSchema = z.object({
   calendar_id: CalendarIdSchema.describe('The calendar ID'),
   event_uuid: z.string().describe('The event UUID'),
+});
+
+export const GetEventCommentImageInputSchema = ListEventCommentsInputSchema.extend({
+  comment_id: z.string().min(1).describe('The comment ID from list_event_comments'),
+  image_index: z.number().int().nonnegative().default(0).describe('Image index from list_event_comments (default: 0)'),
 });
 
 export const UpdateEventCommentInputSchema = z.object({
@@ -44,6 +49,17 @@ export const DeleteEventCommentInputSchema = z.object({
 
 const nullable = (type: string) => ({ type: [type, 'null'] });
 
+const COMMENT_IMAGE_OUTPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    image_index: { type: 'integer', minimum: 0 },
+    filename: nullable('string'),
+    width: { type: ['number', 'string', 'null'] },
+    height: { type: ['number', 'string', 'null'] },
+  },
+  required: ['image_index', 'filename', 'width', 'height'],
+} as const;
+
 const COMMENT_OUTPUT_SCHEMA = {
   type: 'object',
   properties: {
@@ -51,13 +67,14 @@ const COMMENT_OUTPUT_SCHEMA = {
     event_id: nullable('string'),
     calendar_id: nullable('number'),
     content: { type: 'string' },
+    images: { type: 'array', items: COMMENT_IMAGE_OUTPUT_SCHEMA },
     author_id: { type: ['number', 'null'], description: 'User ID of the author' },
     author_type: nullable('string'),
     editor_id: nullable('number'),
     created_at: nullable('string'),
     updated_at: nullable('string'),
   },
-  required: ['id', 'content'],
+  required: ['id', 'content', 'images'],
 } as const;
 
 const COMMENT_RESULT_OUTPUT_SCHEMA = {
@@ -66,12 +83,17 @@ const COMMENT_RESULT_OUTPUT_SCHEMA = {
   required: ['success', 'comment'],
 } as const;
 
+function formatCommentImage(image: CommentImage, imageIndex: number) {
+  return { image_index: imageIndex, filename: image.filename ?? null, width: image.width ?? null, height: image.height ?? null };
+}
+
 function formatComment(comment: EventActivity) {
   return {
     id: comment.id,
     event_id: comment.event_id || null,
     calendar_id: comment.calendar_id || null,
     content: comment.attachment?.content || '',
+    images: (comment.attachment?.images ?? []).map(formatCommentImage),
     author_id: comment.author_id || null,
     author_type: comment.author_type || null,
     editor_id: comment.editor_id || null,
@@ -102,7 +124,7 @@ function errorContent(error: string, message: string, details?: unknown) {
 
 function commentError(error: unknown, action: string) {
   if (error instanceof TimeTreeAPIError && error.statusCode === 404) {
-    return errorContent('Not found', 'The specified event or comment could not be found.');
+    return errorContent('Not found', 'The specified event, comment, or image could not be found. Check list_event_comments for current comments and image indices.');
   }
 
   if (error instanceof TimeTreeAPIError && error.statusCode === 403) {
@@ -175,7 +197,7 @@ export function createListEventCommentsTool(apiClient: TimeTreeAPIClient) {
   return {
     name: 'list_event_comments',
     description:
-      'List the comments on an event with their ids and author user IDs. Only comments are returned, ' +
+      'List comments with their ids, author user IDs, and attached image metadata. Use get_event_comment_image to view an image. Only comments are returned, ' +
       'not change history; use get_recent_activity for who changed what.',
     annotations: READ_ONLY,
     outputSchema: {
@@ -223,6 +245,66 @@ export function createListEventCommentsTool(apiClient: TimeTreeAPIClient) {
       } catch (error) {
         logger.error('Tool: list_event_comments failed', { error });
         return commentError(error, 'list event comments');
+      }
+    },
+  };
+}
+
+/** Return images directly so MCP clients do not need access to the server's filesystem. */
+export function createGetEventCommentImageTool(apiClient: TimeTreeAPIClient) {
+  return {
+    name: 'get_event_comment_image',
+    description:
+      'View one image attached to an event comment, including images posted by free accounts. ' +
+      'Get comment_id and image_index from list_event_comments. Returns image content directly, without saving a file. ' +
+      'Supports JPEG, PNG, GIF, and WebP up to 5 MiB. Premium event file attachments are not supported.',
+    annotations: READ_ONLY,
+    outputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: { type: 'number' },
+        event_uuid: { type: 'string' },
+        comment_id: { type: 'string' },
+        ...COMMENT_IMAGE_OUTPUT_SCHEMA.properties,
+        mime_type: { type: 'string' },
+        byte_size: { type: 'integer' },
+      },
+      required: ['calendar_id', 'event_uuid', 'comment_id', ...COMMENT_IMAGE_OUTPUT_SCHEMA.required, 'mime_type', 'byte_size'],
+    },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        calendar_id: CALENDAR_ID_JSON_SCHEMA,
+        event_uuid: { type: 'string', description: 'The event UUID' },
+        comment_id: { type: 'string', description: 'The comment ID from list_event_comments', minLength: 1 },
+        image_index: { type: 'integer', minimum: 0, default: 0, description: 'Image index from list_event_comments (default: 0)' },
+      },
+      required: ['calendar_id', 'event_uuid', 'comment_id'],
+    },
+    handler: async (args: unknown) => {
+      try {
+        const input = GetEventCommentImageInputSchema.parse(args);
+        logger.info('Tool: get_event_comment_image called', {
+          calendar_id: input.calendar_id, event_uuid: input.event_uuid, comment_id: input.comment_id, image_index: input.image_index,
+        });
+        const { image, data, mimeType } = await apiClient.getEventCommentImage(
+          input.calendar_id.toString(), input.event_uuid, input.comment_id, input.image_index
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                calendar_id: input.calendar_id, event_uuid: input.event_uuid, comment_id: input.comment_id,
+                ...formatCommentImage(image, input.image_index), mime_type: mimeType, byte_size: data.byteLength,
+              }, null, 2),
+            },
+            { type: 'image', data: data.toString('base64'), mimeType },
+          ],
+        };
+      } catch (error) {
+        logger.error('Tool: get_event_comment_image failed', { error });
+        return commentError(error, 'get event comment image');
       }
     },
   };

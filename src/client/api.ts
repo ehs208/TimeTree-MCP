@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { TIMETREE_CONFIG } from '../config/config.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 import { logger } from '../utils/logger.js';
+import { downloadCommentImage } from '../utils/comment-image.js';
 import { AuthenticationError, TimeTreeAuthManager } from './auth.js';
 import type {
   Calendar,
@@ -1120,6 +1121,20 @@ export class TimeTreeAPIClient {
         getStatusCode(error)
       );
     }
+  }
+
+  /** Resolve an image through the event's current comments before downloading it. */
+  async getEventCommentImage(calendarId: string, eventUuid: string, commentId: string, imageIndex: number) {
+    if (!Number.isSafeInteger(imageIndex) || imageIndex < 0) {
+      throw new TimeTreeAPIError('image_index must be a non-negative integer.', 400);
+    }
+    const comments = await this.listEventComments(calendarId, eventUuid);
+    const comment = comments.find((candidate) => candidate.id === commentId);
+    if (!comment) throw new TimeTreeAPIError('Comment not found.', 404);
+    const image = comment.attachment?.images?.[imageIndex];
+    if (!image) throw new TimeTreeAPIError('Image not found. Check images in list_event_comments.', 404);
+    const downloaded = await this.rateLimiter.executeWithRetry(() => downloadCommentImage(image.object_key));
+    return { image, ...downloaded };
   }
 
   async updateEventComment(

@@ -27,6 +27,7 @@ export const TIMETREE_CONFIG = {
   // Base URLs for TimeTree APIs.
   BASE_URL: 'https://timetreeapp.com/api/v1',
   V2_BASE_URL: 'https://timetreeapp.com/api/v2',
+  ATTACHMENT_BASE_URL: 'https://attachments.timetreeapp.com/',
 
   // API Endpoints.
   ENDPOINTS: {

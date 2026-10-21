@@ -36,6 +36,7 @@ AI 어시스턴트에게 이렇게 물어보면 됩니다.
 ## 할 수 있는 일
 
 - **캘린더를 읽습니다.** 날짜, 키워드, 라벨로 일정을 거르고, 반복 일정은 실제 날짜로 펼쳐서 보여줍니다.
+- **댓글 이미지를 읽습니다.** 무료 회원이 올린 이미지를 포함해 일정 댓글에 첨부된 이미지를 AI 클라이언트에 전달합니다.
 - **요청하면 바꿉니다.** 일정, 메모, 댓글을 만들고 고치고 복사하고 지우며, 라벨 이름과 색도 바꿉니다. 반복 일정은 한 회차만, 또는 그 회차부터 이후 전부를 고치거나 지울 수 있습니다.
 - **가상 멤버를 관리합니다.** 아이나 반려동물처럼 TimeTree 계정이 없는 멤버를 추가하고 고치고 지웁니다.
 - **변경 사항을 알려줍니다.** 특정 시점 이후 바뀐 일정과 최근에 누가 무엇을 바꿨는지 확인합니다.
@@ -118,12 +119,14 @@ GUI 클라이언트가 `node`를 찾지 못하면 `command -v node`로 나온 �
 | 일정 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event`, `copy_event` |
 | 반복 일정 | `update_event_occurrence`, `delete_event_occurrence` |
 | 메모 | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
-| 댓글 | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
+| 댓글 | `list_event_comments`, `get_event_comment_image`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
 | 라벨과 멤버 | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members`, `create_virtual_member`, `update_virtual_member`, `delete_virtual_member` |
 | 기타 | `get_holidays`, `get_recent_activity` |
 
 `create_calendar`에는 이름(1~20자)과 명시적인 용도가 필수입니다. 멤버를 초대하지 않으며 시간 초과나 서버 오류는 재시도하지 않습니다.
 생성 응답을 검증할 수 없으면 다시 시도하기 전에 기존 캘린더를 확인하세요.
+
+`list_event_comments`는 첨부 이미지 정보도 반환합니다. `get_event_comment_image`로 한 장씩 가져와 stdio를 통해 MCP 표준 이미지 데이터로 전달합니다. 클라이언트가 도구의 이미지 응답을 지원해야 합니다. JPEG·PNG·GIF·WebP, 최대 5 MiB를 지원하며 이미지는 메모리에만 두고 디스크에 저장하지 않습니다. 일정에 직접 첨부된 프리미엄 파일과 이미지 업로드는 지원하지 않습니다.
 
 파라미터와 사용 예시: [COMMANDS.md](COMMANDS.md)
 

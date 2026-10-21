@@ -156,6 +156,15 @@ export const EventSchema = z.object({
 
 export type Event = z.infer<typeof EventSchema>;
 
+export const CommentImageSchema = z.object({
+  object_key: z.string().min(1),
+  filename: z.string().optional().nullable(),
+  width: z.union([z.number(), z.string()]).optional().nullable(),
+  height: z.union([z.number(), z.string()]).optional().nullable(),
+}).passthrough();
+
+export type CommentImage = z.infer<typeof CommentImageSchema>;
+
 export const EventActivitySchema = z.object({
   id: z.string(),
   event_id: z.string().optional(),
@@ -165,7 +174,8 @@ export const EventActivitySchema = z.object({
   author_type: z.string().optional(),
   editor_id: z.number().optional(),
   attachment: z.object({
-    content: z.string().optional(),
+    content: z.string().optional().nullable(),
+    images: z.array(CommentImageSchema).optional().nullable(),
     items: z.array(z.any()).optional(),
   }).passthrough().optional().nullable(),
   deactivated_at: z.number().optional().nullable(),

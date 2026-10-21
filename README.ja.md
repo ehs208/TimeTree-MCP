@@ -36,6 +36,7 @@ AI アシスタントに次のように聞くだけです。
 ## できること
 
 - **カレンダーを読む。** 日付、キーワード、ラベルで予定を絞り込み、繰り返し予定は実際の日付に展開します。
+- **コメントの画像を読む。** 無料会員が投稿した画像も含め、予定のコメントに添付された画像を AI クライアントに渡せます。
 - **頼めば変更する。** 予定、メモ、コメントの作成、更新、コピー、削除と、ラベル名や色の変更ができます。繰り返し予定は1回分だけ、またはその回以降をまとめて変更・削除できます。
 - **バーチャルメンバーを管理する。** 子どもやペットなど TimeTree アカウントのないメンバーを追加、変更、削除できます。
 - **変更を把握する。** ある時点以降に変わった予定と、最近だれが何を変えたかを確認できます。
@@ -118,12 +119,14 @@ GUI クライアントが `node` を見つけられない場合は、`command -v
 | 予定 | `get_events`, `get_updated_events`, `create_event`, `update_event`, `delete_event`, `copy_event` |
 | 繰り返し予定 | `update_event_occurrence`, `delete_event_occurrence` |
 | メモ | `list_memos`, `create_memo`, `update_memo`, `delete_memo` |
-| コメント | `list_event_comments`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
+| コメント | `list_event_comments`, `get_event_comment_image`, `add_event_comment`, `update_event_comment`, `delete_event_comment` |
 | ラベルとメンバー | `get_calendar_labels`, `update_calendar_labels`, `get_calendar_members`, `get_calendar_virtual_members`, `create_virtual_member`, `update_virtual_member`, `delete_virtual_member` |
 | その他 | `get_holidays`, `get_recent_activity` |
 
 `create_calendar` は名前（1〜20文字）と用途の明示を必須とします。メンバー招待は行わず、タイムアウト・サーバーエラーでは再試行しません。
 作成後の応答を検証できない場合は、再実行前に既存のカレンダーを確認してください。
+
+`list_event_comments` は添付画像の情報も返します。`get_event_comment_image` で1枚ずつ取得し、stdio 経由で MCP 標準の画像データとして返します。クライアント側がツールの画像応答に対応している必要があります。JPEG・PNG・GIF・WebP、最大 5 MiB に対応し、画像はメモリにだけ保持してディスクには保存しません。予定に直接添付されたプレミアムのファイルと画像のアップロードは対象外です。
 
 パラメータと使用例: [COMMANDS.md](COMMANDS.md)
 
