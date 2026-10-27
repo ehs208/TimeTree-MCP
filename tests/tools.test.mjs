@@ -227,6 +227,13 @@ test('calendar tools accept string calendar IDs from list_calendars', async () =
   assert.equal((await tool.handler({ calendar_id: 'abc' })).isError, true);
 });
 
+test('invalid tool input returns validation details', async () => {
+  const tool = createGetHolidaysTool({ getMemorialDays: async () => [] });
+  const result = parseToolText(await tool.handler({ country_iso: ['KR'], start_date: '2026/10/01', end_date: '2026-10-31' }));
+  assert.equal(result.error, 'Invalid input');
+  assert.deepEqual(result.details.map((issue) => issue.path), [['start_date']]);
+});
+
 test('get_holidays returns sorted days and can exclude working-day observances', async () => {
   let captured;
   const tool = createGetHolidaysTool({
@@ -366,12 +373,16 @@ test('create_calendar requires explicit purpose and returns only documented fiel
   assert.equal('default' in tool.inputSchema.properties.purpose, false);
   assert.deepEqual(parseToolText(await tool.handler({name: 'Sample', purpose: 'work'})),
     {id: '123', name: 'Sample', alias_code: 'sample'});
-  for (const args of [{name: 'Sample'}, {name: 'x'.repeat(21), purpose: 'work'},
-    {name: 'Sample', purpose: 'unsupported-input-value'}, {name: 'Sample', purpose: 'work', extra: 'hidden'}]) {
+  for (const [args, reason] of [
+    [{name: 'Sample'}, 'Choose a supported calendar purpose'],
+    [{name: 'x'.repeat(21), purpose: 'work'}, 'Must contain at most 20 characters'],
+    [{name: 'Sample', purpose: 'unsupported-input-value'}, 'Choose a supported calendar purpose'],
+    [{name: 'Sample', purpose: 'work', extra: 'hidden'}, 'Only name and purpose are allowed'],
+  ]) {
     const result = await tool.handler(args);
     assert.equal(result.isError, true);
     assert.equal(parseToolText(result).error, 'Invalid calendar input');
-    assert.ok(parseToolText(result).issues.length);
+    assert.equal(parseToolText(result).issues[0].reason, reason);
     assert.equal(JSON.stringify(result).includes('unsupported-input-value'), false);
   }
   assert.equal(calls.length, 1);

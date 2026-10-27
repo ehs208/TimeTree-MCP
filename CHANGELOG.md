@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Updated `zod` to 4.6.7 and refreshed dependencies (`body-parser`, `fast-uri`, `ip-address`) to resolve published advisories. The build tool `esbuild` moved to 0.27.2, outside its advisory's range. Invalid tool input still returns the validation `details`.
+
 ## [0.7.0] - 2026-10-22
 
 ### Added

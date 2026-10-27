@@ -114,7 +114,7 @@ export function commonWriteError(error: unknown, action: string) {
     return errorContent(
       'Invalid input',
       `Please provide valid data to ${action}`,
-      (error as { errors?: unknown }).errors
+      (error as { issues?: unknown }).issues
     );
   }
 

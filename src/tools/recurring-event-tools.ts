@@ -46,7 +46,7 @@ import {
 const OccurrenceStartSchema = z.union([z.number(), z.string()]).transform((value, ctx) => {
   const instant = typeof value === 'number' ? value : Date.parse(value);
   if (!Number.isFinite(instant)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'occurrence_start_at must be an ISO 8601 time or Unix ms' });
+    ctx.addIssue({ code: 'custom', message: 'occurrence_start_at must be an ISO 8601 time or Unix ms' });
     return z.NEVER;
   }
   return instant;
