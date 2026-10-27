@@ -162,7 +162,7 @@ export function createGetRecentActivityTool(apiClient: TimeTreeAPIClient) {
           return errorContent('Invalid calendar', 'Calendar not found. Please use list_calendars to get valid calendar IDs.');
         }
         if ((error as { name?: string }).name === 'ZodError') {
-          return errorContent('Invalid input', 'Please provide valid activity query parameters', (error as { errors?: unknown }).errors);
+          return errorContent('Invalid input', 'Please provide valid activity query parameters', (error as { issues?: unknown }).issues);
         }
         return errorContent('Failed to get recent activity', (error as Error).message);
       }

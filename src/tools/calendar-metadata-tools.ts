@@ -115,7 +115,7 @@ function metadataError(error: unknown, action: string) {
   }
 
   if ((error as { name?: string }).name === 'ZodError') {
-    return errorContent('Invalid input', `Please provide valid data to ${action}`, (error as { errors?: unknown }).errors);
+    return errorContent('Invalid input', `Please provide valid data to ${action}`, (error as { issues?: unknown }).issues);
   }
 
   return errorContent(`Failed to ${action}`, (error as Error).message);

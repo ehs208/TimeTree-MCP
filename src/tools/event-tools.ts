@@ -308,7 +308,7 @@ export function createGetEventsTool(apiClient: TimeTreeAPIClient) {
                   {
                     error: 'Invalid input',
                     message: 'Please provide a valid calendar_id',
-                    details: (error as any).errors,
+                    details: (error as any).issues,
                   },
                   null,
                   2
@@ -487,7 +487,7 @@ export function createGetUpdatedEventsTool(apiClient: TimeTreeAPIClient) {
                   {
                     error: 'Invalid input',
                     message: 'Please provide valid calendar_id and updated_after (number) parameters',
-                    details: (error as any).errors,
+                    details: (error as any).issues,
                   },
                   null,
                   2

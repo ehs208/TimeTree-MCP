@@ -128,7 +128,7 @@ export function createGetHolidaysTool(apiClient: TimeTreeAPIClient) {
       } catch (error) {
         logger.error('Tool: get_holidays failed', { error });
         if ((error as { name?: string }).name === 'ZodError') {
-          return errorContent('Invalid input', 'Please provide valid holiday query parameters', (error as { errors?: unknown }).errors);
+          return errorContent('Invalid input', 'Please provide valid holiday query parameters', (error as { issues?: unknown }).issues);
         }
         return errorContent('Failed to get holidays', (error as Error).message);
       }

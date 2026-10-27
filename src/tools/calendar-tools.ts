@@ -149,7 +149,7 @@ export function createCreateCalendarTool(apiClient: TimeTreeAPIClient) {
           field: issue.path[0] === 'name' || issue.path[0] === 'purpose' ? issue.path[0] : 'input',
           reason: issue.code === 'too_small' ? 'Must contain at least 1 character'
             : issue.code === 'too_big' ? 'Must contain at most 20 characters'
-            : issue.code === 'invalid_enum_value' ? 'Choose a supported calendar purpose'
+            : issue.code === 'invalid_value' ? 'Choose a supported calendar purpose'
             : issue.code === 'unrecognized_keys' ? 'Only name and purpose are allowed'
             : 'Required field with a supported type and value',
         }));
