@@ -6,6 +6,7 @@
     "@anthropic-ai/mcpb": "2.1.2"
   },
   "overrides": {
-    "zod": "^4.6.6"
+    "zod": "^4.6.6",
+    "tmp": "^0.2.6"
   }
 }
